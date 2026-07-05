@@ -1,0 +1,1372 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>公众号文章格式化器</title>
+<style>
+  :root {
+    --theme: rgb(20, 20, 20);
+    --bg: #f5f5f7;
+    --panel: #ffffff;
+    --border: #e5e5ea;
+    --muted: #8e8e93;
+    --wechat-font: "PingFang SC", system-ui, -apple-system, BlinkMacSystemFont,
+      "Helvetica Neue", "Hiragino Sans GB", "Microsoft YaHei UI",
+      "Microsoft YaHei", Arial, sans-serif;
+    /* 贴图专用字体 —— 霞鹜文楷（本机安装），fallback 到系统字体 */
+    --xhs-font: "LXGW WenKai", "霞鹜文楷", "PingFang SC", system-ui,
+      "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    font-family: var(--wechat-font);
+    background: var(--bg);
+    color: #1d1d1f;
+    -webkit-font-smoothing: antialiased;
+  }
+  header {
+    padding: 16px 24px;
+    border-bottom: 1px solid var(--border);
+    background: var(--panel);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+  }
+  header h1 { font-size: 16px; margin: 0; font-weight: 600; }
+  .meta { font-size: 12px; color: var(--muted); }
+  .actions { display: flex; gap: 8px; flex-wrap: wrap; }
+  button {
+    font-family: inherit;
+    font-size: 13px;
+    padding: 8px 14px;
+    border: 1px solid var(--border);
+    background: #fff;
+    color: #1d1d1f;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background .15s ease;
+  }
+  button:hover { background: #f0f0f3; }
+  button.primary {
+    background: var(--theme);
+    color: #fff;
+    border-color: var(--theme);
+  }
+  button.primary:hover { background: #000; }
+  main {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1px;
+    background: var(--border);
+    height: calc(100vh - 57px);
+  }
+  .panel { background: var(--panel); display: flex; flex-direction: column; min-width: 0; }
+  .panel header.sub {
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border);
+    font-size: 12px;
+    color: var(--muted);
+    background: #fafafa;
+    display: flex;
+    justify-content: space-between;
+  }
+  textarea {
+    flex: 1;
+    width: 100%;
+    border: 0;
+    outline: 0;
+    resize: none;
+    padding: 20px;
+    font-family: var(--wechat-font);
+    font-size: 15px;
+    line-height: 1.7;
+    color: #1d1d1f;
+    background: #fff;
+  }
+  .preview-wrap {
+    flex: 1;
+    overflow: auto;
+    padding: 24px;
+    background: #e9e9ed;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+  }
+  /* 手机外框 —— 模拟微信公众号阅读视图 */
+  .phone {
+    width: 375px;
+    background: #fff;
+    border-radius: 36px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12), 0 0 0 10px #1d1d1f, 0 0 0 11px #2a2a2e;
+    overflow: hidden;
+    position: relative;
+    margin: 8px 0 24px;
+  }
+  .phone-statusbar {
+    height: 44px;
+    background: #f7f7f7;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 22px;
+    font-size: 14px;
+    font-weight: 600;
+    color: #1d1d1f;
+    position: relative;
+  }
+  .phone-statusbar::before {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 8px;
+    transform: translateX(-50%);
+    width: 110px;
+    height: 28px;
+    background: #1d1d1f;
+    border-radius: 18px;
+  }
+  .phone-statusbar .right { display: flex; gap: 6px; align-items: center; font-size: 12px; }
+  .phone-navbar {
+    height: 44px;
+    background: #f7f7f7;
+    border-bottom: 1px solid #e5e5ea;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 14px;
+    font-size: 14px;
+    color: #1d1d1f;
+  }
+  .phone-navbar .title {
+    font-weight: 600;
+    flex: 1;
+    text-align: center;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    padding: 0 8px;
+  }
+  .phone-navbar .icon {
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #1d1d1f;
+    font-size: 18px;
+  }
+  .phone-screen {
+    height: 640px;
+    overflow-y: auto;
+    background: #fff;
+    -webkit-overflow-scrolling: touch;
+  }
+  .phone-meta {
+    padding: 16px 20px 8px;
+    border-bottom: 1px solid #f2f2f4;
+  }
+  .phone-meta .title {
+    font-size: 22px;
+    font-weight: 700;
+    line-height: 1.4;
+    color: #1d1d1f;
+    margin-bottom: 12px;
+  }
+  .phone-meta .author {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 13px;
+  }
+  .phone-meta .avatar {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #6b7280, #1d1d1f);
+  }
+  .phone-meta .author-info { display: flex; flex-direction: column; }
+  .phone-meta .name { color: #576b95; font-weight: 500; }
+  .phone-meta .date { color: #8e8e93; font-size: 12px; margin-top: 2px; }
+  .phone-meta .follow {
+    margin-left: auto;
+    font-size: 12px;
+    color: #fff;
+    background: rgb(20, 20, 20);
+    padding: 4px 10px;
+    border-radius: 14px;
+  }
+  .phone-content { padding: 16px 20px 40px; }
+  /* 公众号成品样式 —— 复制时连带这套规则一起带走 */
+  .wx-article {
+    font-family: var(--wechat-font);
+    font-size: 17px;
+    line-height: 2;
+    color: rgb(20, 20, 20);
+    word-wrap: break-word;
+  }
+  .wx-article p {
+    margin: 0 0 1em 0;
+    line-height: 2;
+    color: rgb(20, 20, 20);
+  }
+  .wx-article h1,
+  .wx-article h2,
+  .wx-article h3 {
+    color: rgb(20, 20, 20);
+    margin: 1.4em 0 0.6em;
+    font-weight: 700;
+    line-height: 1.5;
+  }
+  .wx-article h1 { font-size: 22px; }
+  .wx-article h2 {
+    font-size: 19px;
+    border-left: 4px solid rgb(99, 102, 241);
+    padding-left: 10px;
+  }
+  .wx-article h3 { font-size: 17px; }
+  .wx-article blockquote {
+    margin: 1em 0;
+    padding: 10px 14px;
+    border-left: 3px solid rgb(99, 102, 241);
+    background: #f3f3fd;
+    color: #555;
+    line-height: 2;
+  }
+  .wx-article ul,
+  .wx-article ol {
+    padding-left: 1.4em;
+    margin: 0 0 1em 0;
+    line-height: 2;
+  }
+  .wx-article li { margin-bottom: 0.3em; }
+  .wx-article li::marker { color: rgb(99, 102, 241); }
+  .wx-article strong { color: rgb(20, 20, 20); font-weight: 700; }
+  .wx-article em { font-style: italic; color: rgb(20, 20, 20); }
+  .wx-article code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    background: #f2f2f4;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 14px;
+    color: rgb(20, 20, 20);
+  }
+  .wx-article hr {
+    border: 0;
+    border-top: 1px solid #ddd;
+    margin: 1.6em 0;
+  }
+  .wx-article a {
+    color: rgb(20, 20, 20);
+    text-decoration: underline;
+    text-decoration-color: rgb(99, 102, 241);
+    text-decoration-thickness: 1px;
+    text-underline-offset: 3px;
+  }
+  /* 金句强化 —— 蓝紫色 */
+  .wx-article .wx-quote {
+    margin: 1.6em 0;
+    padding: 14px 18px;
+    text-align: center;
+    font-size: 18px;
+    line-height: 1.8;
+    font-weight: 700;
+    color: rgb(99, 102, 241);
+    border-top: 1px solid rgb(99, 102, 241);
+    border-bottom: 1px solid rgb(99, 102, 241);
+    letter-spacing: 0.02em;
+  }
+  .wx-article .wx-highlight {
+    color: rgb(20, 20, 20);
+    font-weight: 700;
+    background: linear-gradient(transparent 60%, rgba(99, 102, 241, 0.18) 60%);
+    padding: 0 2px;
+  }
+  /* 虚线下划线 —— 淡紫虚线强调，文字保持黑色 */
+  .wx-article .wx-underline {
+    border-bottom: 1px dashed rgb(99, 102, 241);
+    padding-bottom: 1px;
+  }
+  .toast {
+    position: fixed;
+    left: 50%;
+    bottom: 32px;
+    transform: translateX(-50%) translateY(20px);
+    background: rgb(20, 20, 20);
+    color: #fff;
+    padding: 10px 18px;
+    border-radius: 999px;
+    font-size: 13px;
+    opacity: 0;
+    pointer-events: none;
+    transition: all .25s ease;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  @media (max-width: 860px) {
+    main { grid-template-columns: 1fr; height: auto; }
+    .panel { min-height: 50vh; }
+    .phone { width: 340px; }
+  }
+
+  /* ============ 小红书贴图导出 ============ */
+  .exporter-overlay {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,.55);
+    display: none;
+    align-items: center; justify-content: center;
+    z-index: 100;
+  }
+  .exporter-overlay.show { display: flex; }
+  .exporter {
+    width: min(1180px, 96vw);
+    height: min(820px, 94vh);
+    background: #fff;
+    border-radius: 14px;
+    overflow: hidden;
+    display: flex; flex-direction: column;
+    box-shadow: 0 20px 60px rgba(0,0,0,.3);
+  }
+  .exporter-header {
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .exporter-header strong { font-size: 14px; }
+  .exporter-header .x {
+    width: 28px; height: 28px;
+    border: 0; background: transparent; cursor: pointer;
+    font-size: 18px; color: var(--muted);
+  }
+  .exporter-header .x:hover { color: #1d1d1f; }
+  .exporter-body {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 340px 1fr;
+    min-height: 0;
+  }
+  .exporter-side {
+    border-right: 1px solid var(--border);
+    padding: 18px;
+    overflow-y: auto;
+    display: flex; flex-direction: column; gap: 18px;
+    background: #fafafa;
+  }
+  .exporter-section h4 {
+    margin: 0 0 8px;
+    font-size: 12px;
+    color: var(--muted);
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+  .hero-uploader {
+    border: 1.5px dashed #c7c7cc;
+    border-radius: 10px;
+    height: 120px;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--muted);
+    font-size: 12px;
+    cursor: pointer;
+    background: #fff;
+    overflow: hidden;
+    position: relative;
+  }
+  .hero-uploader.drag { border-color: #1d1d1f; background: #f0f0f3; }
+  .hero-uploader img {
+    width: 100%; height: 100%; object-fit: cover; display: block;
+  }
+  .hero-uploader input[type="file"] { display: none; }
+  .hero-row { display: flex; gap: 8px; margin-top: 6px; }
+  .hero-row button { flex: 1; font-size: 12px; padding: 6px 8px; }
+  .hint {
+    font-size: 11px; color: var(--muted); margin-top: 6px; line-height: 1.5;
+  }
+  .exporter-side label {
+    display: block;
+    font-size: 12px; color: var(--muted); margin: 6px 0 4px;
+  }
+  .exporter-side input[type="text"],
+  .exporter-side textarea {
+    width: 100%;
+    box-sizing: border-box;
+    font-family: inherit;
+    font-size: 13px;
+    padding: 8px 10px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: #fff;
+    color: #1d1d1f;
+    resize: vertical;
+  }
+  .exporter-side textarea { line-height: 1.6; }
+  .char-meta { font-size: 11px; color: var(--muted); margin-top: 4px; text-align: right; }
+  .char-meta.warn { color: #d9831f; }
+  .actions-col { display: flex; flex-direction: column; gap: 8px; }
+  .actions-col button { width: 100%; }
+  .exporter-pages {
+    padding: 22px;
+    overflow: auto;
+    background: #e9e9ed;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 18px;
+    align-content: start;
+  }
+  .thumb {
+    width: 100%;
+    aspect-ratio: 3/4;
+    background: #fff;
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 2px 10px rgba(0,0,0,.1);
+    position: relative;
+  }
+  .thumb-inner {
+    width: 1242px;
+    height: 1656px;
+    transform-origin: top left;
+    pointer-events: none;
+  }
+  .thumb .idx {
+    position: absolute;
+    bottom: 8px; right: 8px;
+    background: rgba(0,0,0,.55);
+    color: #fff;
+    font-size: 11px;
+    padding: 3px 10px;
+    border-radius: 999px;
+    letter-spacing: .04em;
+  }
+  .thumb .kind {
+    position: absolute;
+    top: 8px; left: 8px;
+    background: rgba(255,255,255,.85);
+    color: #1d1d1f;
+    font-size: 11px;
+    padding: 3px 8px;
+    border-radius: 6px;
+  }
+
+  /* 离屏 slide 渲染舞台 —— html2canvas 抓这里 */
+  .slide-stage {
+    position: fixed;
+    left: -99999px; top: 0;
+    z-index: -1;
+    pointer-events: none;
+  }
+  .slide {
+    width: 1242px;
+    height: 1656px;
+    background: #fff;
+    color: rgb(20, 20, 20);
+    font-family: var(--xhs-font);
+    position: relative;
+    overflow: hidden;
+    box-sizing: border-box;
+  }
+  /* code 块仍保持等宽，避免文楷渲染代码段不清 */
+  .slide.body .body-content code {
+    font-family: "LXGW WenKai Mono", "霞鹜文楷 Mono",
+      ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+  /* 封面 slide */
+  .slide.cover { padding: 70px; display: flex; flex-direction: column; }
+  .slide.cover .hero {
+    width: 100%;
+    height: 826px;
+    border-radius: 10px;
+    background: #f2f2f4;
+    object-fit: cover;
+    display: block;
+  }
+  .slide.cover .hero-placeholder {
+    width: 100%;
+    height: 826px;
+    border-radius: 10px;
+    background: #f2f2f4;
+    display: flex; align-items: center; justify-content: center;
+    color: #b0b0b5;
+    font-size: 28px;
+    letter-spacing: .04em;
+  }
+  .slide.cover .cover-title {
+    margin-top: 56px;
+    font-size: 78px;
+    line-height: 1.34;
+    font-weight: 800;
+    letter-spacing: .01em;
+  }
+  .slide.cover .cover-author {
+    margin-top: 44px;
+    font-size: 32px;
+    display: flex; align-items: center; gap: 18px;
+    color: rgb(20,20,20);
+  }
+  .slide.cover .cover-author::before {
+    content: '';
+    width: 6px; height: 38px;
+    background: rgb(20, 20, 20);
+    display: inline-block;
+  }
+  .slide.cover .cover-divider {
+    margin-top: 36px;
+    height: 2px;
+    background: #d8d8dc;
+  }
+  /* 正文 slide */
+  .slide.body { padding: 110px 90px 110px; }
+  .slide.body .body-content {
+    font-size: 40px;
+    line-height: 1.85;
+    color: rgb(20, 20, 20);
+  }
+  .slide.body .body-content > * { word-wrap: break-word; }
+  .slide.body .body-content p {
+    margin: 0 0 0.95em;
+  }
+  .slide.body .body-content h1,
+  .slide.body .body-content h2,
+  .slide.body .body-content h3 {
+    margin: 0.9em 0 0.5em;
+    font-weight: 700;
+    line-height: 1.4;
+  }
+  .slide.body .body-content h1 { font-size: 56px; }
+  .slide.body .body-content h2 {
+    font-size: 48px;
+    border-left: 8px solid rgb(99, 102, 241);
+    padding-left: 22px;
+  }
+  .slide.body .body-content h3 { font-size: 44px; }
+  .slide.body .body-content blockquote {
+    margin: 0.9em 0;
+    padding: 22px 30px;
+    border-left: 6px solid rgb(99, 102, 241);
+    background: #f3f3fd;
+    color: #555;
+  }
+  .slide.body .body-content blockquote p { margin: 0 0 0.5em; }
+  .slide.body .body-content blockquote p:last-child { margin: 0; }
+  .slide.body .body-content ul,
+  .slide.body .body-content ol {
+    padding-left: 1.5em;
+    margin: 0 0 0.95em;
+  }
+  .slide.body .body-content li { margin-bottom: 0.3em; }
+  .slide.body .body-content li::marker { color: rgb(99, 102, 241); }
+  .slide.body .body-content hr {
+    border: 0; border-top: 2px solid #ddd; margin: 1em 0;
+  }
+  .slide.body .body-content .wx-quote {
+    margin: 1em 0;
+    padding: 22px 26px;
+    text-align: center;
+    font-weight: 700;
+    color: rgb(99, 102, 241);
+    border-top: 2px solid rgb(99, 102, 241);
+    border-bottom: 2px solid rgb(99, 102, 241);
+    font-size: 42px;
+  }
+  .slide.body .body-content .wx-highlight {
+    color: rgb(20, 20, 20);
+    font-weight: 700;
+    background: linear-gradient(transparent 60%, rgba(99,102,241,.20) 60%);
+    padding: 0 4px;
+  }
+  .slide.body .body-content .wx-underline {
+    border-bottom: 2px dashed rgb(99, 102, 241);
+    padding-bottom: 2px;
+  }
+  .slide.body .body-content strong { font-weight: 700; }
+  .slide.body .body-content em { font-style: italic; }
+  .slide.body .body-content code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    background: #f2f2f4;
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 34px;
+  }
+  .slide .page-num {
+    position: absolute;
+    bottom: 56px; right: 90px;
+    font-size: 22px;
+    color: #a0a0a5;
+    letter-spacing: .1em;
+  }
+  .slide.cover .page-num { color: #d0d0d5; bottom: 40px; right: 70px; }
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>公众号文章格式化器</h1>
+    <div class="meta">主题色 rgb(20,20,20) · 行距 2.0 · 微信标准字体栈</div>
+  </div>
+  <div class="actions">
+    <button id="btn-sample">示例</button>
+    <button id="btn-clear">清空</button>
+    <button id="btn-export">导出贴图</button>
+    <button id="btn-copy" class="primary">复制到公众号</button>
+  </div>
+</header>
+
+<main>
+  <section class="panel">
+    <header class="sub"><span>输入（# 标题 · - 列表 · &gt; 引用 · !! 金句 · ==高亮== · ++虚线++ · **加粗** · *斜体* · `代码`）</span><span id="char-count">0 字</span></header>
+    <textarea id="input" placeholder="在这里粘贴或输入你的文章..."></textarea>
+  </section>
+  <section class="panel">
+    <header class="sub"><span>手机端预览（375pt 宽，模拟微信阅读视图）</span><span id="phone-time">9:41</span></header>
+    <div class="preview-wrap">
+      <div class="phone">
+        <div class="phone-statusbar">
+          <span id="phone-time-bar">9:41</span>
+          <span class="right">5G&nbsp;&nbsp;100%</span>
+        </div>
+        <div class="phone-navbar">
+          <span class="icon">&lsaquo;</span>
+          <span class="title" id="phone-title">公众号文章</span>
+          <span class="icon">&middot;&middot;&middot;</span>
+        </div>
+        <div class="phone-screen">
+          <div class="phone-meta">
+            <div class="title" id="phone-article-title">在这里输入文章标题</div>
+            <div class="author">
+              <div class="avatar"></div>
+              <div class="author-info">
+                <span class="name">汤姆喵</span>
+                <span class="date">原创 · 今天</span>
+              </div>
+              <span class="follow">关注</span>
+            </div>
+          </div>
+          <div class="phone-content">
+            <article id="preview" class="wx-article"></article>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<div id="toast" class="toast">已复制</div>
+
+<!-- ============ 小红书贴图导出模态 ============ -->
+<div id="exporter" class="exporter-overlay" role="dialog" aria-modal="true">
+  <div class="exporter">
+    <div class="exporter-header">
+      <strong>导出小红书贴图 · 3:4 · 段落级分页</strong>
+      <button class="x" id="exporter-close" title="关闭">×</button>
+    </div>
+    <div class="exporter-body">
+      <aside class="exporter-side">
+        <div class="exporter-section">
+          <h4>封面 hero 图</h4>
+          <label class="hero-uploader" id="hero-uploader">
+            <span id="hero-placeholder-text">点击或拖入 hero 图</span>
+            <img id="hero-preview" alt="" style="display:none">
+            <input type="file" id="hero-file" accept="image/*">
+          </label>
+          <div class="hero-row">
+            <button id="btn-hero-clear">清除</button>
+            <button id="btn-copy-skill-prompt">复制 skill 指令</button>
+          </div>
+          <div class="hint">没有 hero 图？点「复制 skill 指令」粘到 Cursor 聊天，让 tommiao-xiaohongshu-cover skill 出一张。</div>
+        </div>
+
+        <div class="exporter-section">
+          <h4>小红书 Caption</h4>
+          <label>副标题（7-15 字）</label>
+          <input type="text" id="cap-subtitle" placeholder="一句话，与主标题呼应">
+          <div id="cap-subtitle-meta" class="char-meta">0 字</div>
+          <label>简介（150-200 字）</label>
+          <textarea id="cap-intro" rows="6" placeholder="以文章开头第一句为开头..."></textarea>
+          <div id="cap-intro-meta" class="char-meta">0 字</div>
+        </div>
+
+        <div class="exporter-section actions-col">
+          <button id="btn-copy-caption">复制 caption 文案</button>
+          <button id="btn-export-zip" class="primary">下载全部 (ZIP)</button>
+        </div>
+      </aside>
+      <main class="exporter-pages" id="exporter-pages"></main>
+    </div>
+  </div>
+</div>
+
+<!-- 离屏 slide 渲染舞台 -->
+<div class="slide-stage" id="slide-stage"></div>
+<!-- 段落级分页时用的测量器（始终在 slide-stage 里，但单独存在） -->
+<div class="slide-stage">
+  <div id="slide-measurer" class="slide body">
+    <div class="body-content" id="slide-measurer-content"></div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const input = $('input');
+  const preview = $('preview');
+  const charCount = $('char-count');
+  const toast = $('toast');
+
+  const escapeHtml = (s) =>
+    s.replace(/&/g, '&amp;')
+     .replace(/</g, '&lt;')
+     .replace(/>/g, '&gt;')
+     .replace(/"/g, '&quot;')
+     .replace(/'/g, '&#39;');
+
+  // 行内格式：**加粗** *斜体* `code` ==高亮== ++虚线下划线++ [text](url)
+  const renderInline = (text) => {
+    let s = escapeHtml(text);
+    s = s.replace(/`([^`]+)`/g, '<code>$1</code>');
+    s = s.replace(/==([^=]+)==/g, '<span class="wx-highlight">$1</span>');
+    s = s.replace(/\+\+([^+]+)\+\+/g, '<span class="wx-underline">$1</span>');
+    s = s.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+    s = s.replace(/(^|[^*])\*([^*\n]+)\*/g, '$1<em>$2</em>');
+    s = s.replace(/\[([^\]]+)\]\(([^)]+)\)/g,
+      '<a href="$2" target="_blank" rel="noopener">$1</a>');
+    return s;
+  };
+
+  // 极简块级解析：标题 / 引用 / 列表 / 分隔线 / 段落
+  const renderMarkdown = (raw) => {
+    const lines = raw.replace(/\r\n/g, '\n').split('\n');
+    const out = [];
+    let i = 0;
+    const flushList = (type, items) => {
+      out.push(`<${type}>${items.map(t => `<li>${renderInline(t)}</li>`).join('')}</${type}>`);
+    };
+    while (i < lines.length) {
+      const line = lines[i];
+
+      if (/^\s*$/.test(line)) { i++; continue; }
+
+      let m;
+      if ((m = line.match(/^(#{1,3})\s+(.+)$/))) {
+        const level = m[1].length;
+        out.push(`<h${level}>${renderInline(m[2].trim())}</h${level}>`);
+        i++; continue;
+      }
+
+      if (/^\s*(---|\*\*\*|___)\s*$/.test(line)) {
+        out.push('<hr/>'); i++; continue;
+      }
+
+      if ((m = line.match(/^\s*!!\s+(.+)$/))) {
+        out.push(`<p class="wx-quote">${renderInline(m[1].trim())}</p>`);
+        i++; continue;
+      }
+
+      if (/^\s*>\s?/.test(line)) {
+        const buf = [];
+        while (i < lines.length && /^\s*>\s?/.test(lines[i])) {
+          buf.push(lines[i].replace(/^\s*>\s?/, ''));
+          i++;
+        }
+        out.push(`<blockquote>${buf.map(t => `<p>${renderInline(t)}</p>`).join('')}</blockquote>`);
+        continue;
+      }
+
+      if (/^\s*[-*]\s+/.test(line)) {
+        const items = [];
+        while (i < lines.length && /^\s*[-*]\s+/.test(lines[i])) {
+          items.push(lines[i].replace(/^\s*[-*]\s+/, ''));
+          i++;
+        }
+        flushList('ul', items); continue;
+      }
+
+      if (/^\s*\d+\.\s+/.test(line)) {
+        const items = [];
+        while (i < lines.length && /^\s*\d+\.\s+/.test(lines[i])) {
+          items.push(lines[i].replace(/^\s*\d+\.\s+/, ''));
+          i++;
+        }
+        flushList('ol', items); continue;
+      }
+
+      // 段落：连续非空行合并
+      const buf = [line];
+      i++;
+      while (i < lines.length && !/^\s*$/.test(lines[i])
+        && !/^(#{1,3})\s+/.test(lines[i])
+        && !/^\s*>\s?/.test(lines[i])
+        && !/^\s*[-*]\s+/.test(lines[i])
+        && !/^\s*\d+\.\s+/.test(lines[i])
+        && !/^\s*!!\s+/.test(lines[i])
+        && !/^\s*(---|\*\*\*|___)\s*$/.test(lines[i])) {
+        buf.push(lines[i]); i++;
+      }
+      out.push(`<p>${renderInline(buf.join('<br/>'))}</p>`);
+    }
+    return out.join('\n');
+  };
+
+  // 把样式 inline 化，确保粘贴到公众号后保留视觉
+  const inlineStyle = (html) => {
+    const wrap = document.createElement('div');
+    wrap.innerHTML = html;
+    // 字体名用单引号 —— 避免与 style="..." 外层双引号冲突，导致粘贴到公众号后属性被错误拆分
+    const FONT = "'PingFang SC', system-ui, -apple-system, BlinkMacSystemFont, 'Helvetica Neue', 'Hiragino Sans GB', 'Microsoft YaHei UI', 'Microsoft YaHei', Arial, sans-serif";
+    const THEME = 'rgb(20, 20, 20)';
+    const ACCENT = 'rgb(99, 102, 241)';
+    const apply = (el, style) => {
+      el.setAttribute('style', (el.getAttribute('style') || '') + style);
+    };
+    wrap.querySelectorAll('p').forEach(el => apply(el,
+      `margin:0 0 1em 0;line-height:2;color:${THEME};font-family:${FONT};font-size:17px;`));
+    wrap.querySelectorAll('h1').forEach(el => apply(el,
+      `font-size:22px;line-height:1.5;color:${THEME};margin:1.4em 0 .6em;font-weight:700;font-family:${FONT};`));
+    wrap.querySelectorAll('h2').forEach(el => apply(el,
+      `font-size:19px;line-height:1.5;color:${THEME};margin:1.4em 0 .6em;font-weight:700;border-left:4px solid ${ACCENT};padding-left:10px;font-family:${FONT};`));
+    wrap.querySelectorAll('h3').forEach(el => apply(el,
+      `font-size:17px;line-height:1.5;color:${THEME};margin:1.4em 0 .6em;font-weight:700;font-family:${FONT};`));
+    wrap.querySelectorAll('blockquote').forEach(el => apply(el,
+      `margin:1em 0;padding:10px 14px;border-left:3px solid ${ACCENT};background:#f3f3fd;color:#555;line-height:2;font-family:${FONT};`));
+    wrap.querySelectorAll('blockquote p').forEach(el => apply(el, `color:#555;`));
+    wrap.querySelectorAll('ul,ol').forEach(el => apply(el,
+      `padding-left:1.4em;margin:0 0 1em 0;line-height:2;color:${THEME};font-family:${FONT};font-size:17px;`));
+    // 圆点/序号用蓝紫色：给 li 设 color=ACCENT（marker 跟随），文字用内层 span 拉回 THEME
+    wrap.querySelectorAll('li').forEach(el => {
+      apply(el, `margin-bottom:.3em;color:${ACCENT};`);
+      const inner = document.createElement('span');
+      inner.setAttribute('style', `color:${THEME};`);
+      while (el.firstChild) inner.appendChild(el.firstChild);
+      el.appendChild(inner);
+    });
+    wrap.querySelectorAll('strong').forEach(el => apply(el, `font-weight:700;color:${THEME};`));
+    wrap.querySelectorAll('em').forEach(el => apply(el, `font-style:italic;color:${THEME};`));
+    wrap.querySelectorAll('code').forEach(el => apply(el,
+      `font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;background:#f2f2f4;padding:2px 6px;border-radius:4px;font-size:14px;color:${THEME};`));
+    wrap.querySelectorAll('hr').forEach(el => apply(el,
+      `border:0;border-top:1px solid #ddd;margin:1.6em 0;`));
+    wrap.querySelectorAll('a').forEach(el => apply(el,
+      `color:${THEME};text-decoration:underline;text-decoration-color:${ACCENT};text-decoration-thickness:1px;text-underline-offset:3px;`));
+    wrap.querySelectorAll('p.wx-quote').forEach(el => {
+      el.setAttribute('style',
+        `margin:1.6em 0;padding:14px 18px;text-align:center;font-size:18px;line-height:1.8;font-weight:700;color:${ACCENT};border-top:1px solid ${ACCENT};border-bottom:1px solid ${ACCENT};letter-spacing:.02em;font-family:${FONT};`);
+    });
+    wrap.querySelectorAll('span.wx-highlight').forEach(el => {
+      el.setAttribute('style',
+        `color:${THEME};font-weight:700;background:linear-gradient(transparent 60%, rgba(99,102,241,.18) 60%);padding:0 2px;`);
+    });
+    wrap.querySelectorAll('span.wx-underline').forEach(el => {
+      el.setAttribute('style',
+        `border-bottom:1px dashed ${ACCENT};padding-bottom:1px;`);
+    });
+    const section = document.createElement('section');
+    section.setAttribute('style',
+      `font-family:${FONT};font-size:17px;line-height:2;color:${THEME};`);
+    section.innerHTML = wrap.innerHTML;
+    return section.outerHTML;
+  };
+
+  const phoneTitle = $('phone-article-title');
+  const navTitle = $('phone-title');
+
+  const extractTitle = (text) => {
+    const m = text.match(/^\s*#\s+(.+)$/m);
+    return m ? m[1].trim() : '';
+  };
+
+  const countArticleChars = (text) => [...text.replace(/\s/g, '')].length;
+
+  const update = () => {
+    const text = input.value;
+    preview.innerHTML = renderMarkdown(text);
+    charCount.textContent = `正文约 ${countArticleChars(preview.innerText)} 字`;
+    const t = extractTitle(text) || '在这里输入文章标题';
+    phoneTitle.textContent = t;
+    navTitle.textContent = t.length > 14 ? t.slice(0, 14) + '...' : t;
+  };
+
+  const tickClock = () => {
+    const d = new Date();
+    const hh = String(d.getHours()).padStart(2, '0');
+    const mm = String(d.getMinutes()).padStart(2, '0');
+    const s = `${hh}:${mm}`;
+    $('phone-time').textContent = s;
+    $('phone-time-bar').textContent = s;
+  };
+  tickClock();
+  setInterval(tickClock, 30 * 1000);
+
+  const showToast = (msg) => {
+    toast.textContent = msg;
+    toast.classList.add('show');
+    clearTimeout(showToast._t);
+    showToast._t = setTimeout(() => toast.classList.remove('show'), 1600);
+  };
+
+  const copyRich = async () => {
+    const html = inlineStyle(preview.innerHTML);
+    const plain = preview.innerText;
+    try {
+      if (navigator.clipboard && window.ClipboardItem) {
+        await navigator.clipboard.write([
+          new ClipboardItem({
+            'text/html': new Blob([html], { type: 'text/html' }),
+            'text/plain': new Blob([plain], { type: 'text/plain' }),
+          }),
+        ]);
+      } else {
+        // 兜底：选中预览区再 execCommand
+        const range = document.createRange();
+        range.selectNodeContents(preview);
+        const sel = window.getSelection();
+        sel.removeAllRanges();
+        sel.addRange(range);
+        document.execCommand('copy');
+        sel.removeAllRanges();
+      }
+      showToast('已复制，去公众号编辑器粘贴吧');
+    } catch (e) {
+      showToast('复制失败：' + e.message);
+    }
+  };
+
+  const SAMPLE = `# 这是一篇示例文章
+
+这是第一段正文。**加粗的关键词**会用主题色突出，*斜体*也保留。可以用 ==荧光笔高亮== 来强调一个词组，也可以用 ++虚线下划线++ 来做另一种轻强调。
+
+!! 这是金句卡片，整段独立成块，蓝紫色加粗居中
+
+## 小节标题
+
+> 引用块用来强调金句，或者放原文摘录。
+
+- 列表第一条
+- 列表第二条，可以包含 \`inline code\`
+- 列表第三条
+
+1. 有序列表也可以
+2. 第二项
+
+---
+
+最后一段。可以贴 [一个链接](https://example.com)。`;
+
+  $('btn-sample').addEventListener('click', () => { input.value = SAMPLE; update(); });
+  $('btn-clear').addEventListener('click', () => { input.value = ''; update(); input.focus(); });
+  $('btn-copy').addEventListener('click', copyRich);
+  input.addEventListener('input', update);
+
+  update();
+
+  // ============================================================
+  // 小红书贴图导出
+  // ============================================================
+
+  const AUTHOR = '汤姆喵的奇妙旅行';
+  const SLIDE_W = 1242;
+  const SLIDE_H = 1656;
+  // 正文 slide 内容区可用高度 = SLIDE_H - 上下 padding(110*2) - page-num 预留(60)
+  const BODY_INNER_H = SLIDE_H - 220 - 60;
+
+  const overlay = $('exporter');
+  const pagesGrid = $('exporter-pages');
+  const stage = $('slide-stage');
+  const measurer = $('slide-measurer');
+  const measurerContent = $('slide-measurer-content');
+
+  // 当前 hero 图（DataURL，便于 html2canvas 同源捕获）
+  let heroDataUrl = null;
+
+  // ---------- 分页 ----------
+
+  // 把 .wx-article 里的顶层块复制出来作为分页原子
+  const collectBlocks = () => {
+    return Array.from(preview.children).map(el => el.cloneNode(true));
+  };
+
+  // 测量：current 数组里的块按序放进 measurer 后，是否超出 BODY_INNER_H
+  const measureFits = (blocks) => {
+    measurerContent.innerHTML = '';
+    blocks.forEach(b => measurerContent.appendChild(b.cloneNode(true)));
+    return measurerContent.scrollHeight <= BODY_INNER_H;
+  };
+
+  // 单个超长段落按句切分（。！？），保留标点；切到能放下为止
+  const splitLongParagraph = (block) => {
+    if (block.tagName !== 'P') return [block];
+    const html = block.innerHTML;
+    // 按句末标点切，保留标点在前段
+    const parts = html.split(/(?<=[。！？!?])/).filter(Boolean);
+    if (parts.length <= 1) return [block];
+    const pieces = [];
+    let buf = '';
+    const flush = () => {
+      const p = document.createElement('p');
+      p.innerHTML = buf;
+      pieces.push(p);
+      buf = '';
+    };
+    for (const part of parts) {
+      const test = document.createElement('p');
+      test.innerHTML = buf + part;
+      if (!measureFits([test]) && buf) {
+        flush();
+        buf = part;
+      } else {
+        buf += part;
+      }
+    }
+    if (buf) flush();
+    return pieces.length ? pieces : [block];
+  };
+
+  // 主分页
+  const paginateBlocks = (blocks) => {
+    const pages = [];
+    let current = [];
+    const isHeading = (el) => /^H[1-3]$/.test(el.tagName);
+
+    for (const block of blocks) {
+      // 单块即超页 —— 先按句切
+      if (!measureFits([block])) {
+        if (current.length) { pages.push(current); current = []; }
+        const splits = splitLongParagraph(block);
+        if (splits.length === 1) {
+          // 切不动（非 P 或没有句号），硬塞一页
+          pages.push([block]);
+        } else {
+          // 把 splits 逐个走主流程
+          for (const piece of splits) {
+            current.push(piece);
+            if (!measureFits(current)) {
+              current.pop();
+              if (current.length) pages.push(current);
+              current = [piece];
+            }
+          }
+        }
+        continue;
+      }
+
+      current.push(block);
+      if (!measureFits(current)) {
+        current.pop();
+        // 孤儿标题修正：当前页最后是标题，本块是非标题 —— 把标题推到下一页
+        if (current.length >= 1 && isHeading(current[current.length - 1])) {
+          const lastHeading = current.pop();
+          if (current.length) pages.push(current);
+          current = [lastHeading, block];
+          // 若推后仍超，让标题独占一页
+          if (!measureFits(current)) {
+            current.pop();
+            pages.push(current);
+            current = [block];
+          }
+        } else {
+          if (current.length) pages.push(current);
+          current = [block];
+        }
+      }
+    }
+    if (current.length) pages.push(current);
+    return pages;
+  };
+
+  // ---------- slide 渲染 ----------
+
+  const buildCoverSlide = (title) => {
+    const el = document.createElement('div');
+    el.className = 'slide cover';
+    el.dataset.kind = 'cover';
+    const heroHtml = heroDataUrl
+      ? `<img class="hero" src="${heroDataUrl}" alt="">`
+      : `<div class="hero-placeholder">封面 hero 图位</div>`;
+    el.innerHTML = `
+      ${heroHtml}
+      <div class="cover-title">${escapeHtml(title || '未命名文章')}</div>
+      <div class="cover-author">作者：${escapeHtml(AUTHOR)}</div>
+      <div class="cover-divider"></div>
+    `;
+    return el;
+  };
+
+  const buildBodySlide = (blocks, pageIdx, totalPages) => {
+    const el = document.createElement('div');
+    el.className = 'slide body';
+    el.dataset.kind = 'body';
+    const content = document.createElement('div');
+    content.className = 'body-content';
+    blocks.forEach(b => content.appendChild(b.cloneNode(true)));
+    el.appendChild(content);
+    const num = document.createElement('span');
+    num.className = 'page-num';
+    num.textContent = `${pageIdx} / ${totalPages}`;
+    el.appendChild(num);
+    return el;
+  };
+
+  // 生成全部 slides（cover + bodies），挂到 stage，返回数组
+  const buildAllSlides = () => {
+    stage.innerHTML = '';
+    const title = extractTitle(input.value) || '未命名文章';
+    const blocks = collectBlocks();
+
+    // 抓掉首个 h1（已用作封面标题）
+    if (blocks.length && blocks[0].tagName === 'H1') blocks.shift();
+
+    const bodyPages = blocks.length ? paginateBlocks(blocks) : [];
+    const totalBody = bodyPages.length;
+
+    const slides = [];
+    const cover = buildCoverSlide(title);
+    stage.appendChild(cover);
+    slides.push(cover);
+
+    bodyPages.forEach((pageBlocks, i) => {
+      const slide = buildBodySlide(pageBlocks, i + 1, totalBody);
+      stage.appendChild(slide);
+      slides.push(slide);
+    });
+    return slides;
+  };
+
+  // ---------- 缩略图渲染（用 CSS scale，不跑 html2canvas，秒级） ----------
+
+  const renderThumbs = (slides) => {
+    pagesGrid.innerHTML = '';
+    slides.forEach((slide, i) => {
+      const thumb = document.createElement('div');
+      thumb.className = 'thumb';
+      const inner = document.createElement('div');
+      inner.className = 'thumb-inner';
+      inner.appendChild(slide.cloneNode(true));
+      thumb.appendChild(inner);
+      const idx = document.createElement('span');
+      idx.className = 'idx';
+      idx.textContent = `${i + 1} / ${slides.length}`;
+      thumb.appendChild(idx);
+      const kind = document.createElement('span');
+      kind.className = 'kind';
+      kind.textContent = slide.dataset.kind === 'cover' ? '封面' : '正文';
+      thumb.appendChild(kind);
+      pagesGrid.appendChild(thumb);
+    });
+    // 缩放因子 = 缩略图实际宽度 / 1242
+    requestAnimationFrame(() => {
+      pagesGrid.querySelectorAll('.thumb').forEach(t => {
+        const scale = t.clientWidth / SLIDE_W;
+        const inner = t.querySelector('.thumb-inner');
+        inner.style.transform = `scale(${scale})`;
+        t.style.height = (SLIDE_W * (4/3)) * scale + 'px'; // 维持 3:4
+      });
+    });
+  };
+
+  // ---------- hero 上传 ----------
+
+  const heroUploader = $('hero-uploader');
+  const heroFile = $('hero-file');
+  const heroPreview = $('hero-preview');
+  const heroPlaceholderText = $('hero-placeholder-text');
+
+  const readAsDataURL = (file) => new Promise((res, rej) => {
+    const fr = new FileReader();
+    fr.onload = () => res(fr.result);
+    fr.onerror = () => rej(fr.error);
+    fr.readAsDataURL(file);
+  });
+
+  const setHero = async (file) => {
+    if (!file) return;
+    heroDataUrl = await readAsDataURL(file);
+    heroPreview.src = heroDataUrl;
+    heroPreview.style.display = 'block';
+    heroPlaceholderText.style.display = 'none';
+    refreshSlides();
+  };
+
+  const clearHero = () => {
+    heroDataUrl = null;
+    heroPreview.removeAttribute('src');
+    heroPreview.style.display = 'none';
+    heroPlaceholderText.style.display = '';
+    heroFile.value = '';
+    refreshSlides();
+  };
+
+  heroFile.addEventListener('change', e => setHero(e.target.files[0]));
+  heroUploader.addEventListener('dragover', e => {
+    e.preventDefault(); heroUploader.classList.add('drag');
+  });
+  heroUploader.addEventListener('dragleave', () => heroUploader.classList.remove('drag'));
+  heroUploader.addEventListener('drop', e => {
+    e.preventDefault();
+    heroUploader.classList.remove('drag');
+    const f = e.dataTransfer.files && e.dataTransfer.files[0];
+    if (f && f.type.startsWith('image/')) setHero(f);
+  });
+  $('btn-hero-clear').addEventListener('click', clearHero);
+
+  // ---------- caption 输入 ----------
+
+  const capSubtitle = $('cap-subtitle');
+  const capIntro = $('cap-intro');
+  const capSubtitleMeta = $('cap-subtitle-meta');
+  const capIntroMeta = $('cap-intro-meta');
+
+  const updateCapMeta = () => {
+    const sLen = [...capSubtitle.value].length;
+    const iLen = [...capIntro.value].length;
+    capSubtitleMeta.textContent = `${sLen} 字`;
+    capSubtitleMeta.classList.toggle('warn', sLen > 0 && (sLen < 7 || sLen > 15));
+    capIntroMeta.textContent = `${iLen} 字`;
+    capIntroMeta.classList.toggle('warn', iLen > 0 && (iLen < 150 || iLen > 200));
+  };
+  capSubtitle.addEventListener('input', updateCapMeta);
+  capIntro.addEventListener('input', updateCapMeta);
+
+  // ---------- 复制 skill 指令 ----------
+
+  const buildSkillPrompt = () => {
+    const md = input.value.trim() || '（请粘贴文章内容）';
+    return `请用 tommiao-xiaohongshu-cover skill 处理下面这篇文章，给我封面 hero 图（1024x768）和小红书 caption 文案（副标题 7-15 字 + 简介 150-200 字）。
+
+---
+${md}
+---`;
+  };
+
+  const copyText = async (text) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      return true;
+    } catch (e) {
+      // 兜底：textarea + execCommand
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed'; ta.style.left = '-9999px';
+      document.body.appendChild(ta);
+      ta.select();
+      const ok = document.execCommand('copy');
+      ta.remove();
+      return ok;
+    }
+  };
+
+  $('btn-copy-skill-prompt').addEventListener('click', async () => {
+    const ok = await copyText(buildSkillPrompt());
+    showToast(ok ? '已复制 skill 指令，粘到 Cursor 聊天' : '复制失败');
+  });
+
+  $('btn-copy-caption').addEventListener('click', async () => {
+    const sub = capSubtitle.value.trim();
+    const intro = capIntro.value.trim();
+    if (!sub && !intro) { showToast('副标题和简介都还没填'); return; }
+    const text = [sub, intro].filter(Boolean).join('\n\n');
+    const ok = await copyText(text);
+    showToast(ok ? '已复制 caption，粘到小红书发布框' : '复制失败');
+  });
+
+  // ---------- 导出 ZIP ----------
+
+  const slugFromTitle = (title) => {
+    const t = (title || 'untitled').replace(/[\\/:*?"<>|\s]/g, '').slice(0, 16);
+    const d = new Date();
+    const ymd = `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}`;
+    return `${ymd}-${t || 'untitled'}`;
+  };
+
+  const downloadBlob = (blob, filename) => {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 200);
+  };
+
+  const slideToBlob = (slide) => new Promise((resolve, reject) => {
+    html2canvas(slide, {
+      width: SLIDE_W, height: SLIDE_H,
+      scale: 1, backgroundColor: '#ffffff',
+      useCORS: true, logging: false,
+    }).then(canvas => canvas.toBlob(b => b ? resolve(b) : reject(new Error('toBlob 失败')), 'image/png'))
+      .catch(reject);
+  });
+
+  const exportZipBtn = $('btn-export-zip');
+
+  exportZipBtn.addEventListener('click', async () => {
+    const slides = stage.querySelectorAll('.slide');
+    if (!slides.length) { showToast('还没有 slides，先写正文'); return; }
+    const origText = exportZipBtn.textContent;
+    exportZipBtn.disabled = true;
+    try {
+      const zip = new JSZip();
+      const total = slides.length;
+      for (let i = 0; i < total; i++) {
+        exportZipBtn.textContent = `渲染中 ${i+1}/${total}...`;
+        const blob = await slideToBlob(slides[i]);
+        const kind = slides[i].dataset.kind;
+        const name = `${String(i+1).padStart(2,'0')}-${kind}.png`;
+        zip.file(name, blob);
+      }
+      // 附 caption.txt
+      const sub = capSubtitle.value.trim();
+      const intro = capIntro.value.trim();
+      if (sub || intro) {
+        const title = extractTitle(input.value) || '';
+        const txt = [
+          '【副标题】', sub || '（未填）', '',
+          '【简介】', intro || '（未填）', '',
+          '【源文章标题】', title,
+        ].join('\n');
+        zip.file('caption.txt', txt);
+      }
+      exportZipBtn.textContent = '打包中...';
+      const zipBlob = await zip.generateAsync({ type: 'blob' });
+      const slug = slugFromTitle(extractTitle(input.value));
+      downloadBlob(zipBlob, `xhs-${slug}.zip`);
+      showToast(`已导出 ${total} 张图`);
+    } catch (e) {
+      console.error(e);
+      showToast('导出失败：' + e.message);
+    } finally {
+      exportZipBtn.disabled = false;
+      exportZipBtn.textContent = origText;
+    }
+  });
+
+  // ---------- 模态开关 + 刷新 ----------
+
+  let dirty = true;
+  const refreshSlides = () => {
+    if (!overlay.classList.contains('show')) { dirty = true; return; }
+    const slides = buildAllSlides();
+    renderThumbs(slides);
+    dirty = false;
+  };
+
+  const openExporter = () => {
+    overlay.classList.add('show');
+    // 每次打开都重新分页（文章可能变了）
+    refreshSlides();
+  };
+  const closeExporter = () => {
+    overlay.classList.remove('show');
+  };
+
+  $('btn-export').addEventListener('click', openExporter);
+  $('exporter-close').addEventListener('click', closeExporter);
+  overlay.addEventListener('click', e => { if (e.target === overlay) closeExporter(); });
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && overlay.classList.contains('show')) closeExporter();
+  });
+  // 输入变化 → 模态打开时实时重排
+  input.addEventListener('input', () => { dirty = true; if (overlay.classList.contains('show')) refreshSlides(); });
+})();
+</script>
+</body>
+</html>
