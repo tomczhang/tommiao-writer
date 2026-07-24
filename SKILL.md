@@ -233,7 +233,8 @@ description: |
 2. 前置三问锁定真触发
 3. 按公理写
 4. 每写完一段，自检一个问题：「这句话是为了说清楚什么，还是为了让句子看起来有判断？」
-5. **不要做四层自检**——那是槽位思维，会让文章越改越像通过考试的产品
+5. 重要文章发稿前，按 [references/red_team.md](references/red_team.md) 做一轮红队重读。常规更新跳过。
+6. **不要做四层自检**——那是槽位思维，会让文章越改越像通过考试的产品。红队重读是单轮换立场重读，不是四层自检。
 
 ---
 
@@ -315,3 +316,9 @@ description: |
 ### 6. 外部作者可吸收机制
 
 [references/inspiration_patterns.md](references/inspiration_patterns.md)
+
+### 7. 发稿前红队重读
+
+[references/red_team.md](references/red_team.md)
+
+重要文章发稿前的单轮对抗重读：四个攻击视角（截图党 / 较真读者 / 老读者 / AI 猎人），只修被点名的句子，不重写全文。
