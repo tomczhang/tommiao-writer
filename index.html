@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>公众号文章格式化器</title>
+<title>公众号排版系统 · 汤姆喵</title>
 <style>
   :root {
     --theme: rgb(20, 20, 20);
@@ -26,18 +26,19 @@
     color: #1d1d1f;
     -webkit-font-smoothing: antialiased;
   }
-  header {
-    padding: 16px 24px;
+  header.top {
+    padding: 12px 24px;
     border-bottom: 1px solid var(--border);
     background: var(--panel);
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 16px;
+    flex-wrap: wrap;
   }
-  header h1 { font-size: 16px; margin: 0; font-weight: 600; }
+  header.top h1 { font-size: 16px; margin: 0; font-weight: 600; }
   .meta { font-size: 12px; color: var(--muted); }
-  .actions { display: flex; gap: 8px; flex-wrap: wrap; }
+  .actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
   button {
     font-family: inherit;
     font-size: 13px;
@@ -56,24 +57,99 @@
     border-color: var(--theme);
   }
   button.primary:hover { background: #000; }
+  button.ai {
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    color: #fff;
+    border-color: transparent;
+  }
+  button.ai:hover { filter: brightness(1.08); }
+  button.ai:disabled { opacity: .6; cursor: wait; }
+  select {
+    font-family: inherit;
+    font-size: 13px;
+    padding: 7px 8px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: #fff;
+    color: #1d1d1f;
+  }
+  /* 主题切换 chips */
+  .theme-bar { display: flex; gap: 6px; align-items: center; }
+  .theme-chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 6px 12px; border-radius: 999px; font-size: 12px;
+  }
+  .theme-chip .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+  .theme-chip.active { background: #1d1d1f; color: #fff; border-color: #1d1d1f; }
+
   main {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 1px;
     background: var(--border);
-    height: calc(100vh - 57px);
+    height: calc(100vh - 61px);
   }
   .panel { background: var(--panel); display: flex; flex-direction: column; min-width: 0; }
   .panel header.sub {
-    padding: 10px 16px;
+    padding: 8px 16px;
     border-bottom: 1px solid var(--border);
     font-size: 12px;
     color: var(--muted);
     background: #fafafa;
     display: flex;
     justify-content: space-between;
+    align-items: center;
+    gap: 8px;
   }
-  textarea {
+  /* 编辑器工具条 */
+  .toolbar {
+    padding: 6px 12px;
+    border-bottom: 1px solid var(--border);
+    background: #fcfcfd;
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+  .toolbar .group-label {
+    font-size: 11px; color: var(--muted); margin-right: 2px; flex-shrink: 0;
+  }
+  .toolbar button.tool {
+    font-size: 12px;
+    padding: 4px 9px;
+    border-radius: 6px;
+    background: #fff;
+  }
+  .toolbar button.tool:hover { background: #eef2ff; border-color: #c7d2fe; }
+  #btn-punct {
+    font-size: 11px; padding: 4px 9px; border-radius: 6px;
+    color: var(--muted); border-color: transparent; background: transparent;
+  }
+  #btn-punct.warn { color: #d9831f; border-color: #f5d9ac; background: #fff8ec; }
+  /* 工具条悬浮样式预览 */
+  .style-pop {
+    position: fixed;
+    z-index: 300;
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    box-shadow: 0 12px 36px rgba(0, 0, 0, 0.18);
+    padding: 12px 14px;
+    width: 380px;
+    max-height: 70vh;
+    overflow: hidden;
+    display: none;
+    pointer-events: none;
+  }
+  .style-pop.show { display: block; }
+  .style-pop .pop-label {
+    margin: 0 0 8px;
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 0.05em;
+  }
+
+  textarea#input {
     flex: 1;
     width: 100%;
     border: 0;
@@ -81,8 +157,8 @@
     resize: none;
     padding: 20px;
     font-family: var(--wechat-font);
-    font-size: 15px;
-    line-height: 1.7;
+    font-size: 14px;
+    line-height: 1.8;
     color: #1d1d1f;
     background: #fff;
   }
@@ -164,131 +240,7 @@
     background: #fff;
     -webkit-overflow-scrolling: touch;
   }
-  .phone-meta {
-    padding: 16px 20px 8px;
-    border-bottom: 1px solid #f2f2f4;
-  }
-  .phone-meta .title {
-    font-size: 22px;
-    font-weight: 700;
-    line-height: 1.4;
-    color: #1d1d1f;
-    margin-bottom: 12px;
-  }
-  .phone-meta .author {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    font-size: 13px;
-  }
-  .phone-meta .avatar {
-    width: 28px;
-    height: 28px;
-    border-radius: 50%;
-    background: linear-gradient(135deg, #6b7280, #1d1d1f);
-  }
-  .phone-meta .author-info { display: flex; flex-direction: column; }
-  .phone-meta .name { color: #576b95; font-weight: 500; }
-  .phone-meta .date { color: #8e8e93; font-size: 12px; margin-top: 2px; }
-  .phone-meta .follow {
-    margin-left: auto;
-    font-size: 12px;
-    color: #fff;
-    background: rgb(20, 20, 20);
-    padding: 4px 10px;
-    border-radius: 14px;
-  }
-  .phone-content { padding: 16px 20px 40px; }
-  /* 公众号成品样式 —— 复制时连带这套规则一起带走 */
-  .wx-article {
-    font-family: var(--wechat-font);
-    font-size: 17px;
-    line-height: 2;
-    color: rgb(20, 20, 20);
-    word-wrap: break-word;
-  }
-  .wx-article p {
-    margin: 0 0 1em 0;
-    line-height: 2;
-    color: rgb(20, 20, 20);
-  }
-  .wx-article h1,
-  .wx-article h2,
-  .wx-article h3 {
-    color: rgb(20, 20, 20);
-    margin: 1.4em 0 0.6em;
-    font-weight: 700;
-    line-height: 1.5;
-  }
-  .wx-article h1 { font-size: 22px; }
-  .wx-article h2 {
-    font-size: 19px;
-    border-left: 4px solid rgb(99, 102, 241);
-    padding-left: 10px;
-  }
-  .wx-article h3 { font-size: 17px; }
-  .wx-article blockquote {
-    margin: 1em 0;
-    padding: 10px 14px;
-    border-left: 3px solid rgb(99, 102, 241);
-    background: #f3f3fd;
-    color: #555;
-    line-height: 2;
-  }
-  .wx-article ul,
-  .wx-article ol {
-    padding-left: 1.4em;
-    margin: 0 0 1em 0;
-    line-height: 2;
-  }
-  .wx-article li { margin-bottom: 0.3em; }
-  .wx-article li::marker { color: rgb(99, 102, 241); }
-  .wx-article strong { color: rgb(20, 20, 20); font-weight: 700; }
-  .wx-article em { font-style: italic; color: rgb(20, 20, 20); }
-  .wx-article code {
-    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-    background: #f2f2f4;
-    padding: 2px 6px;
-    border-radius: 4px;
-    font-size: 14px;
-    color: rgb(20, 20, 20);
-  }
-  .wx-article hr {
-    border: 0;
-    border-top: 1px solid #ddd;
-    margin: 1.6em 0;
-  }
-  .wx-article a {
-    color: rgb(20, 20, 20);
-    text-decoration: underline;
-    text-decoration-color: rgb(99, 102, 241);
-    text-decoration-thickness: 1px;
-    text-underline-offset: 3px;
-  }
-  /* 金句强化 —— 蓝紫色 */
-  .wx-article .wx-quote {
-    margin: 1.6em 0;
-    padding: 14px 18px;
-    text-align: center;
-    font-size: 18px;
-    line-height: 1.8;
-    font-weight: 700;
-    color: rgb(99, 102, 241);
-    border-top: 1px solid rgb(99, 102, 241);
-    border-bottom: 1px solid rgb(99, 102, 241);
-    letter-spacing: 0.02em;
-  }
-  .wx-article .wx-highlight {
-    color: rgb(20, 20, 20);
-    font-weight: 700;
-    background: linear-gradient(transparent 60%, rgba(99, 102, 241, 0.18) 60%);
-    padding: 0 2px;
-  }
-  /* 虚线下划线 —— 淡紫虚线强调，文字保持黑色 */
-  .wx-article .wx-underline {
-    border-bottom: 1px dashed rgb(99, 102, 241);
-    padding-bottom: 1px;
-  }
+  .phone-content { padding: 16px 14px 40px; }
   .toast {
     position: fixed;
     left: 50%;
@@ -302,9 +254,13 @@
     opacity: 0;
     pointer-events: none;
     transition: all .25s ease;
+    z-index: 200;
+    max-width: 80vw;
   }
   .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
-  @media (max-width: 860px) {
+  /* 语义渲染宿主（贴图分页数据源，不可见） */
+  #semantic-host { display: none; }
+  @media (max-width: 960px) {
     main { grid-template-columns: 1fr; height: auto; }
     .panel { min-height: 50vh; }
     .phone { width: 340px; }
@@ -549,6 +505,12 @@
   }
   .slide.body .body-content blockquote p { margin: 0 0 0.5em; }
   .slide.body .body-content blockquote p:last-child { margin: 0; }
+  .slide.body .body-content blockquote.sem-code {
+    background: #1e293b; color: #e2e8f0; border-left-color: #64748b;
+  }
+  .slide.body .body-content blockquote.sem-code code {
+    background: transparent; color: #e2e8f0; padding: 0; font-size: 32px;
+  }
   .slide.body .body-content ul,
   .slide.body .body-content ol {
     padding-left: 1.5em;
@@ -559,6 +521,7 @@
   .slide.body .body-content hr {
     border: 0; border-top: 2px solid #ddd; margin: 1em 0;
   }
+  .slide.body .body-content del { color: #9ca3af; }
   .slide.body .body-content .wx-quote {
     margin: 1em 0;
     padding: 22px 26px;
@@ -599,12 +562,16 @@
 </style>
 </head>
 <body>
-<header>
+<header class="top">
   <div>
-    <h1>公众号文章格式化器</h1>
-    <div class="meta">主题色 rgb(20,20,20) · 行距 2.0 · 微信标准字体栈</div>
+    <h1>公众号排版系统</h1>
+    <div class="meta">手动排版 + AI 一键排版 · 双主题 · 合规校验（span leaf / 全角标点）</div>
   </div>
+  <div class="theme-bar" id="theme-bar"></div>
   <div class="actions">
+    <select id="ai-preset" title="本地 agent CLI 预设（cli-config.json）"></select>
+    <button id="btn-ai" class="ai" title="调本地 agent CLI 做默认样式优化，结果回填编辑器，可继续手动改">AI 一键排版</button>
+    <button id="btn-ai-undo" style="display:none" title="还原到 AI 排版前的内容">还原</button>
     <button id="btn-sample">示例</button>
     <button id="btn-clear">清空</button>
     <button id="btn-export">导出贴图</button>
@@ -614,11 +581,25 @@
 
 <main>
   <section class="panel">
-    <header class="sub"><span>输入（# 标题 · - 列表 · &gt; 引用 · !! 金句 · ==高亮== · ++虚线++ · **加粗** · *斜体* · `代码`）</span><span id="char-count">0 字</span></header>
-    <textarea id="input" placeholder="在这里粘贴或输入你的文章..."></textarea>
+    <header class="sub">
+      <span>Markdown 源码（扩展语法，见工具条悬浮提示）</span>
+      <span style="display:flex;align-items:center;gap:8px;">
+        <button id="btn-punct">标点 ✓</button>
+        <span id="char-count">0 字</span>
+      </span>
+    </header>
+    <div class="toolbar">
+      <span class="group-label">行内</span>
+      <span id="toolbar-inline" style="display:contents"></span>
+    </div>
+    <div class="toolbar">
+      <span class="group-label">插入</span>
+      <span id="toolbar-block" style="display:contents"></span>
+    </div>
+    <textarea id="input" placeholder="在这里粘贴或输入你的文章，点「示例」看全部语法..."></textarea>
   </section>
   <section class="panel">
-    <header class="sub"><span>手机端预览（375pt 宽，模拟微信阅读视图）</span><span id="phone-time">9:41</span></header>
+    <header class="sub"><span>手机端预览（375pt · 所见即复制产物）</span><span id="phone-time">9:41</span></header>
     <div class="preview-wrap">
       <div class="phone">
         <div class="phone-statusbar">
@@ -631,19 +612,8 @@
           <span class="icon">&middot;&middot;&middot;</span>
         </div>
         <div class="phone-screen">
-          <div class="phone-meta">
-            <div class="title" id="phone-article-title">在这里输入文章标题</div>
-            <div class="author">
-              <div class="avatar"></div>
-              <div class="author-info">
-                <span class="name">汤姆喵</span>
-                <span class="date">原创 · 今天</span>
-              </div>
-              <span class="follow">关注</span>
-            </div>
-          </div>
           <div class="phone-content">
-            <article id="preview" class="wx-article"></article>
+            <article id="preview"></article>
           </div>
         </div>
       </div>
@@ -652,6 +622,8 @@
 </main>
 
 <div id="toast" class="toast">已复制</div>
+<!-- 语义渲染宿主：贴图分页的数据源 -->
+<div id="semantic-host"></div>
 
 <!-- ============ 小红书贴图导出模态 ============ -->
 <div id="exporter" class="exporter-overlay" role="dialog" aria-modal="true">
@@ -673,7 +645,7 @@
             <button id="btn-hero-clear">清除</button>
             <button id="btn-copy-skill-prompt">复制 skill 指令</button>
           </div>
-          <div class="hint">没有 hero 图？点「复制 skill 指令」粘到 Cursor 聊天，让 tommiao-xiaohongshu-cover skill 出一张。</div>
+          <div class="hint">没有 hero 图？点「复制 skill 指令」粘到 agent 聊天，让 tommiao-xiaohongshu-cover skill 出一张。</div>
         </div>
 
         <div class="exporter-section">
@@ -698,7 +670,7 @@
 
 <!-- 离屏 slide 渲染舞台 -->
 <div class="slide-stage" id="slide-stage"></div>
-<!-- 段落级分页时用的测量器（始终在 slide-stage 里，但单独存在） -->
+<!-- 段落级分页时用的测量器 -->
 <div class="slide-stage">
   <div id="slide-measurer" class="slide body">
     <div class="body-content" id="slide-measurer-content"></div>
@@ -707,666 +679,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
-
-<script>
-(() => {
-  const $ = (id) => document.getElementById(id);
-  const input = $('input');
-  const preview = $('preview');
-  const charCount = $('char-count');
-  const toast = $('toast');
-
-  const escapeHtml = (s) =>
-    s.replace(/&/g, '&amp;')
-     .replace(/</g, '&lt;')
-     .replace(/>/g, '&gt;')
-     .replace(/"/g, '&quot;')
-     .replace(/'/g, '&#39;');
-
-  // 行内格式：**加粗** *斜体* `code` ==高亮== ++虚线下划线++ [text](url)
-  const renderInline = (text) => {
-    let s = escapeHtml(text);
-    s = s.replace(/`([^`]+)`/g, '<code>$1</code>');
-    s = s.replace(/==([^=]+)==/g, '<span class="wx-highlight">$1</span>');
-    s = s.replace(/\+\+([^+]+)\+\+/g, '<span class="wx-underline">$1</span>');
-    s = s.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
-    s = s.replace(/(^|[^*])\*([^*\n]+)\*/g, '$1<em>$2</em>');
-    s = s.replace(/\[([^\]]+)\]\(([^)]+)\)/g,
-      '<a href="$2" target="_blank" rel="noopener">$1</a>');
-    return s;
-  };
-
-  // 极简块级解析：标题 / 引用 / 列表 / 分隔线 / 段落
-  const renderMarkdown = (raw) => {
-    const lines = raw.replace(/\r\n/g, '\n').split('\n');
-    const out = [];
-    let i = 0;
-    const flushList = (type, items) => {
-      out.push(`<${type}>${items.map(t => `<li>${renderInline(t)}</li>`).join('')}</${type}>`);
-    };
-    while (i < lines.length) {
-      const line = lines[i];
-
-      if (/^\s*$/.test(line)) { i++; continue; }
-
-      let m;
-      if ((m = line.match(/^(#{1,3})\s+(.+)$/))) {
-        const level = m[1].length;
-        out.push(`<h${level}>${renderInline(m[2].trim())}</h${level}>`);
-        i++; continue;
-      }
-
-      if (/^\s*(---|\*\*\*|___)\s*$/.test(line)) {
-        out.push('<hr/>'); i++; continue;
-      }
-
-      if ((m = line.match(/^\s*!!\s+(.+)$/))) {
-        out.push(`<p class="wx-quote">${renderInline(m[1].trim())}</p>`);
-        i++; continue;
-      }
-
-      if (/^\s*>\s?/.test(line)) {
-        const buf = [];
-        while (i < lines.length && /^\s*>\s?/.test(lines[i])) {
-          buf.push(lines[i].replace(/^\s*>\s?/, ''));
-          i++;
-        }
-        out.push(`<blockquote>${buf.map(t => `<p>${renderInline(t)}</p>`).join('')}</blockquote>`);
-        continue;
-      }
-
-      if (/^\s*[-*]\s+/.test(line)) {
-        const items = [];
-        while (i < lines.length && /^\s*[-*]\s+/.test(lines[i])) {
-          items.push(lines[i].replace(/^\s*[-*]\s+/, ''));
-          i++;
-        }
-        flushList('ul', items); continue;
-      }
-
-      if (/^\s*\d+\.\s+/.test(line)) {
-        const items = [];
-        while (i < lines.length && /^\s*\d+\.\s+/.test(lines[i])) {
-          items.push(lines[i].replace(/^\s*\d+\.\s+/, ''));
-          i++;
-        }
-        flushList('ol', items); continue;
-      }
-
-      // 段落：连续非空行合并
-      const buf = [line];
-      i++;
-      while (i < lines.length && !/^\s*$/.test(lines[i])
-        && !/^(#{1,3})\s+/.test(lines[i])
-        && !/^\s*>\s?/.test(lines[i])
-        && !/^\s*[-*]\s+/.test(lines[i])
-        && !/^\s*\d+\.\s+/.test(lines[i])
-        && !/^\s*!!\s+/.test(lines[i])
-        && !/^\s*(---|\*\*\*|___)\s*$/.test(lines[i])) {
-        buf.push(lines[i]); i++;
-      }
-      out.push(`<p>${renderInline(buf.join('<br/>'))}</p>`);
-    }
-    return out.join('\n');
-  };
-
-  // 把样式 inline 化，确保粘贴到公众号后保留视觉
-  const inlineStyle = (html) => {
-    const wrap = document.createElement('div');
-    wrap.innerHTML = html;
-    // 字体名用单引号 —— 避免与 style="..." 外层双引号冲突，导致粘贴到公众号后属性被错误拆分
-    const FONT = "'PingFang SC', system-ui, -apple-system, BlinkMacSystemFont, 'Helvetica Neue', 'Hiragino Sans GB', 'Microsoft YaHei UI', 'Microsoft YaHei', Arial, sans-serif";
-    const THEME = 'rgb(20, 20, 20)';
-    const ACCENT = 'rgb(99, 102, 241)';
-    const apply = (el, style) => {
-      el.setAttribute('style', (el.getAttribute('style') || '') + style);
-    };
-    wrap.querySelectorAll('p').forEach(el => apply(el,
-      `margin:0 0 1em 0;line-height:2;color:${THEME};font-family:${FONT};font-size:17px;`));
-    wrap.querySelectorAll('h1').forEach(el => apply(el,
-      `font-size:22px;line-height:1.5;color:${THEME};margin:1.4em 0 .6em;font-weight:700;font-family:${FONT};`));
-    wrap.querySelectorAll('h2').forEach(el => apply(el,
-      `font-size:19px;line-height:1.5;color:${THEME};margin:1.4em 0 .6em;font-weight:700;border-left:4px solid ${ACCENT};padding-left:10px;font-family:${FONT};`));
-    wrap.querySelectorAll('h3').forEach(el => apply(el,
-      `font-size:17px;line-height:1.5;color:${THEME};margin:1.4em 0 .6em;font-weight:700;font-family:${FONT};`));
-    wrap.querySelectorAll('blockquote').forEach(el => apply(el,
-      `margin:1em 0;padding:10px 14px;border-left:3px solid ${ACCENT};background:#f3f3fd;color:#555;line-height:2;font-family:${FONT};`));
-    wrap.querySelectorAll('blockquote p').forEach(el => apply(el, `color:#555;`));
-    wrap.querySelectorAll('ul,ol').forEach(el => apply(el,
-      `padding-left:1.4em;margin:0 0 1em 0;line-height:2;color:${THEME};font-family:${FONT};font-size:17px;`));
-    // 圆点/序号用蓝紫色：给 li 设 color=ACCENT（marker 跟随），文字用内层 span 拉回 THEME
-    wrap.querySelectorAll('li').forEach(el => {
-      apply(el, `margin-bottom:.3em;color:${ACCENT};`);
-      const inner = document.createElement('span');
-      inner.setAttribute('style', `color:${THEME};`);
-      while (el.firstChild) inner.appendChild(el.firstChild);
-      el.appendChild(inner);
-    });
-    wrap.querySelectorAll('strong').forEach(el => apply(el, `font-weight:700;color:${THEME};`));
-    wrap.querySelectorAll('em').forEach(el => apply(el, `font-style:italic;color:${THEME};`));
-    wrap.querySelectorAll('code').forEach(el => apply(el,
-      `font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;background:#f2f2f4;padding:2px 6px;border-radius:4px;font-size:14px;color:${THEME};`));
-    wrap.querySelectorAll('hr').forEach(el => apply(el,
-      `border:0;border-top:1px solid #ddd;margin:1.6em 0;`));
-    wrap.querySelectorAll('a').forEach(el => apply(el,
-      `color:${THEME};text-decoration:underline;text-decoration-color:${ACCENT};text-decoration-thickness:1px;text-underline-offset:3px;`));
-    wrap.querySelectorAll('p.wx-quote').forEach(el => {
-      el.setAttribute('style',
-        `margin:1.6em 0;padding:14px 18px;text-align:center;font-size:18px;line-height:1.8;font-weight:700;color:${ACCENT};border-top:1px solid ${ACCENT};border-bottom:1px solid ${ACCENT};letter-spacing:.02em;font-family:${FONT};`);
-    });
-    wrap.querySelectorAll('span.wx-highlight').forEach(el => {
-      el.setAttribute('style',
-        `color:${THEME};font-weight:700;background:linear-gradient(transparent 60%, rgba(99,102,241,.18) 60%);padding:0 2px;`);
-    });
-    wrap.querySelectorAll('span.wx-underline').forEach(el => {
-      el.setAttribute('style',
-        `border-bottom:1px dashed ${ACCENT};padding-bottom:1px;`);
-    });
-    const section = document.createElement('section');
-    section.setAttribute('style',
-      `font-family:${FONT};font-size:17px;line-height:2;color:${THEME};`);
-    section.innerHTML = wrap.innerHTML;
-    return section.outerHTML;
-  };
-
-  const phoneTitle = $('phone-article-title');
-  const navTitle = $('phone-title');
-
-  const extractTitle = (text) => {
-    const m = text.match(/^\s*#\s+(.+)$/m);
-    return m ? m[1].trim() : '';
-  };
-
-  const countArticleChars = (text) => [...text.replace(/\s/g, '')].length;
-
-  const update = () => {
-    const text = input.value;
-    preview.innerHTML = renderMarkdown(text);
-    charCount.textContent = `正文约 ${countArticleChars(preview.innerText)} 字`;
-    const t = extractTitle(text) || '在这里输入文章标题';
-    phoneTitle.textContent = t;
-    navTitle.textContent = t.length > 14 ? t.slice(0, 14) + '...' : t;
-  };
-
-  const tickClock = () => {
-    const d = new Date();
-    const hh = String(d.getHours()).padStart(2, '0');
-    const mm = String(d.getMinutes()).padStart(2, '0');
-    const s = `${hh}:${mm}`;
-    $('phone-time').textContent = s;
-    $('phone-time-bar').textContent = s;
-  };
-  tickClock();
-  setInterval(tickClock, 30 * 1000);
-
-  const showToast = (msg) => {
-    toast.textContent = msg;
-    toast.classList.add('show');
-    clearTimeout(showToast._t);
-    showToast._t = setTimeout(() => toast.classList.remove('show'), 1600);
-  };
-
-  const copyRich = async () => {
-    const html = inlineStyle(preview.innerHTML);
-    const plain = preview.innerText;
-    try {
-      if (navigator.clipboard && window.ClipboardItem) {
-        await navigator.clipboard.write([
-          new ClipboardItem({
-            'text/html': new Blob([html], { type: 'text/html' }),
-            'text/plain': new Blob([plain], { type: 'text/plain' }),
-          }),
-        ]);
-      } else {
-        // 兜底：选中预览区再 execCommand
-        const range = document.createRange();
-        range.selectNodeContents(preview);
-        const sel = window.getSelection();
-        sel.removeAllRanges();
-        sel.addRange(range);
-        document.execCommand('copy');
-        sel.removeAllRanges();
-      }
-      showToast('已复制，去公众号编辑器粘贴吧');
-    } catch (e) {
-      showToast('复制失败：' + e.message);
-    }
-  };
-
-  const SAMPLE = `# 这是一篇示例文章
-
-这是第一段正文。**加粗的关键词**会用主题色突出，*斜体*也保留。可以用 ==荧光笔高亮== 来强调一个词组，也可以用 ++虚线下划线++ 来做另一种轻强调。
-
-!! 这是金句卡片，整段独立成块，蓝紫色加粗居中
-
-## 小节标题
-
-> 引用块用来强调金句，或者放原文摘录。
-
-- 列表第一条
-- 列表第二条，可以包含 \`inline code\`
-- 列表第三条
-
-1. 有序列表也可以
-2. 第二项
-
----
-
-最后一段。可以贴 [一个链接](https://example.com)。`;
-
-  $('btn-sample').addEventListener('click', () => { input.value = SAMPLE; update(); });
-  $('btn-clear').addEventListener('click', () => { input.value = ''; update(); input.focus(); });
-  $('btn-copy').addEventListener('click', copyRich);
-  input.addEventListener('input', update);
-
-  update();
-
-  // ============================================================
-  // 小红书贴图导出
-  // ============================================================
-
-  const AUTHOR = '汤姆喵的奇妙旅行';
-  const SLIDE_W = 1242;
-  const SLIDE_H = 1656;
-  // 正文 slide 内容区可用高度 = SLIDE_H - 上下 padding(110*2) - page-num 预留(60)
-  const BODY_INNER_H = SLIDE_H - 220 - 60;
-
-  const overlay = $('exporter');
-  const pagesGrid = $('exporter-pages');
-  const stage = $('slide-stage');
-  const measurer = $('slide-measurer');
-  const measurerContent = $('slide-measurer-content');
-
-  // 当前 hero 图（DataURL，便于 html2canvas 同源捕获）
-  let heroDataUrl = null;
-
-  // ---------- 分页 ----------
-
-  // 把 .wx-article 里的顶层块复制出来作为分页原子
-  const collectBlocks = () => {
-    return Array.from(preview.children).map(el => el.cloneNode(true));
-  };
-
-  // 测量：current 数组里的块按序放进 measurer 后，是否超出 BODY_INNER_H
-  const measureFits = (blocks) => {
-    measurerContent.innerHTML = '';
-    blocks.forEach(b => measurerContent.appendChild(b.cloneNode(true)));
-    return measurerContent.scrollHeight <= BODY_INNER_H;
-  };
-
-  // 单个超长段落按句切分（。！？），保留标点；切到能放下为止
-  const splitLongParagraph = (block) => {
-    if (block.tagName !== 'P') return [block];
-    const html = block.innerHTML;
-    // 按句末标点切，保留标点在前段
-    const parts = html.split(/(?<=[。！？!?])/).filter(Boolean);
-    if (parts.length <= 1) return [block];
-    const pieces = [];
-    let buf = '';
-    const flush = () => {
-      const p = document.createElement('p');
-      p.innerHTML = buf;
-      pieces.push(p);
-      buf = '';
-    };
-    for (const part of parts) {
-      const test = document.createElement('p');
-      test.innerHTML = buf + part;
-      if (!measureFits([test]) && buf) {
-        flush();
-        buf = part;
-      } else {
-        buf += part;
-      }
-    }
-    if (buf) flush();
-    return pieces.length ? pieces : [block];
-  };
-
-  // 主分页
-  const paginateBlocks = (blocks) => {
-    const pages = [];
-    let current = [];
-    const isHeading = (el) => /^H[1-3]$/.test(el.tagName);
-
-    for (const block of blocks) {
-      // 单块即超页 —— 先按句切
-      if (!measureFits([block])) {
-        if (current.length) { pages.push(current); current = []; }
-        const splits = splitLongParagraph(block);
-        if (splits.length === 1) {
-          // 切不动（非 P 或没有句号），硬塞一页
-          pages.push([block]);
-        } else {
-          // 把 splits 逐个走主流程
-          for (const piece of splits) {
-            current.push(piece);
-            if (!measureFits(current)) {
-              current.pop();
-              if (current.length) pages.push(current);
-              current = [piece];
-            }
-          }
-        }
-        continue;
-      }
-
-      current.push(block);
-      if (!measureFits(current)) {
-        current.pop();
-        // 孤儿标题修正：当前页最后是标题，本块是非标题 —— 把标题推到下一页
-        if (current.length >= 1 && isHeading(current[current.length - 1])) {
-          const lastHeading = current.pop();
-          if (current.length) pages.push(current);
-          current = [lastHeading, block];
-          // 若推后仍超，让标题独占一页
-          if (!measureFits(current)) {
-            current.pop();
-            pages.push(current);
-            current = [block];
-          }
-        } else {
-          if (current.length) pages.push(current);
-          current = [block];
-        }
-      }
-    }
-    if (current.length) pages.push(current);
-    return pages;
-  };
-
-  // ---------- slide 渲染 ----------
-
-  const buildCoverSlide = (title) => {
-    const el = document.createElement('div');
-    el.className = 'slide cover';
-    el.dataset.kind = 'cover';
-    const heroHtml = heroDataUrl
-      ? `<img class="hero" src="${heroDataUrl}" alt="">`
-      : `<div class="hero-placeholder">封面 hero 图位</div>`;
-    el.innerHTML = `
-      ${heroHtml}
-      <div class="cover-title">${escapeHtml(title || '未命名文章')}</div>
-      <div class="cover-author">作者：${escapeHtml(AUTHOR)}</div>
-      <div class="cover-divider"></div>
-    `;
-    return el;
-  };
-
-  const buildBodySlide = (blocks, pageIdx, totalPages) => {
-    const el = document.createElement('div');
-    el.className = 'slide body';
-    el.dataset.kind = 'body';
-    const content = document.createElement('div');
-    content.className = 'body-content';
-    blocks.forEach(b => content.appendChild(b.cloneNode(true)));
-    el.appendChild(content);
-    const num = document.createElement('span');
-    num.className = 'page-num';
-    num.textContent = `${pageIdx} / ${totalPages}`;
-    el.appendChild(num);
-    return el;
-  };
-
-  // 生成全部 slides（cover + bodies），挂到 stage，返回数组
-  const buildAllSlides = () => {
-    stage.innerHTML = '';
-    const title = extractTitle(input.value) || '未命名文章';
-    const blocks = collectBlocks();
-
-    // 抓掉首个 h1（已用作封面标题）
-    if (blocks.length && blocks[0].tagName === 'H1') blocks.shift();
-
-    const bodyPages = blocks.length ? paginateBlocks(blocks) : [];
-    const totalBody = bodyPages.length;
-
-    const slides = [];
-    const cover = buildCoverSlide(title);
-    stage.appendChild(cover);
-    slides.push(cover);
-
-    bodyPages.forEach((pageBlocks, i) => {
-      const slide = buildBodySlide(pageBlocks, i + 1, totalBody);
-      stage.appendChild(slide);
-      slides.push(slide);
-    });
-    return slides;
-  };
-
-  // ---------- 缩略图渲染（用 CSS scale，不跑 html2canvas，秒级） ----------
-
-  const renderThumbs = (slides) => {
-    pagesGrid.innerHTML = '';
-    slides.forEach((slide, i) => {
-      const thumb = document.createElement('div');
-      thumb.className = 'thumb';
-      const inner = document.createElement('div');
-      inner.className = 'thumb-inner';
-      inner.appendChild(slide.cloneNode(true));
-      thumb.appendChild(inner);
-      const idx = document.createElement('span');
-      idx.className = 'idx';
-      idx.textContent = `${i + 1} / ${slides.length}`;
-      thumb.appendChild(idx);
-      const kind = document.createElement('span');
-      kind.className = 'kind';
-      kind.textContent = slide.dataset.kind === 'cover' ? '封面' : '正文';
-      thumb.appendChild(kind);
-      pagesGrid.appendChild(thumb);
-    });
-    // 缩放因子 = 缩略图实际宽度 / 1242
-    requestAnimationFrame(() => {
-      pagesGrid.querySelectorAll('.thumb').forEach(t => {
-        const scale = t.clientWidth / SLIDE_W;
-        const inner = t.querySelector('.thumb-inner');
-        inner.style.transform = `scale(${scale})`;
-        t.style.height = (SLIDE_W * (4/3)) * scale + 'px'; // 维持 3:4
-      });
-    });
-  };
-
-  // ---------- hero 上传 ----------
-
-  const heroUploader = $('hero-uploader');
-  const heroFile = $('hero-file');
-  const heroPreview = $('hero-preview');
-  const heroPlaceholderText = $('hero-placeholder-text');
-
-  const readAsDataURL = (file) => new Promise((res, rej) => {
-    const fr = new FileReader();
-    fr.onload = () => res(fr.result);
-    fr.onerror = () => rej(fr.error);
-    fr.readAsDataURL(file);
-  });
-
-  const setHero = async (file) => {
-    if (!file) return;
-    heroDataUrl = await readAsDataURL(file);
-    heroPreview.src = heroDataUrl;
-    heroPreview.style.display = 'block';
-    heroPlaceholderText.style.display = 'none';
-    refreshSlides();
-  };
-
-  const clearHero = () => {
-    heroDataUrl = null;
-    heroPreview.removeAttribute('src');
-    heroPreview.style.display = 'none';
-    heroPlaceholderText.style.display = '';
-    heroFile.value = '';
-    refreshSlides();
-  };
-
-  heroFile.addEventListener('change', e => setHero(e.target.files[0]));
-  heroUploader.addEventListener('dragover', e => {
-    e.preventDefault(); heroUploader.classList.add('drag');
-  });
-  heroUploader.addEventListener('dragleave', () => heroUploader.classList.remove('drag'));
-  heroUploader.addEventListener('drop', e => {
-    e.preventDefault();
-    heroUploader.classList.remove('drag');
-    const f = e.dataTransfer.files && e.dataTransfer.files[0];
-    if (f && f.type.startsWith('image/')) setHero(f);
-  });
-  $('btn-hero-clear').addEventListener('click', clearHero);
-
-  // ---------- caption 输入 ----------
-
-  const capSubtitle = $('cap-subtitle');
-  const capIntro = $('cap-intro');
-  const capSubtitleMeta = $('cap-subtitle-meta');
-  const capIntroMeta = $('cap-intro-meta');
-
-  const updateCapMeta = () => {
-    const sLen = [...capSubtitle.value].length;
-    const iLen = [...capIntro.value].length;
-    capSubtitleMeta.textContent = `${sLen} 字`;
-    capSubtitleMeta.classList.toggle('warn', sLen > 0 && (sLen < 7 || sLen > 15));
-    capIntroMeta.textContent = `${iLen} 字`;
-    capIntroMeta.classList.toggle('warn', iLen > 0 && (iLen < 150 || iLen > 200));
-  };
-  capSubtitle.addEventListener('input', updateCapMeta);
-  capIntro.addEventListener('input', updateCapMeta);
-
-  // ---------- 复制 skill 指令 ----------
-
-  const buildSkillPrompt = () => {
-    const md = input.value.trim() || '（请粘贴文章内容）';
-    return `请用 tommiao-xiaohongshu-cover skill 处理下面这篇文章，给我封面 hero 图（1024x768）和小红书 caption 文案（副标题 7-15 字 + 简介 150-200 字）。
-
----
-${md}
----`;
-  };
-
-  const copyText = async (text) => {
-    try {
-      await navigator.clipboard.writeText(text);
-      return true;
-    } catch (e) {
-      // 兜底：textarea + execCommand
-      const ta = document.createElement('textarea');
-      ta.value = text;
-      ta.style.position = 'fixed'; ta.style.left = '-9999px';
-      document.body.appendChild(ta);
-      ta.select();
-      const ok = document.execCommand('copy');
-      ta.remove();
-      return ok;
-    }
-  };
-
-  $('btn-copy-skill-prompt').addEventListener('click', async () => {
-    const ok = await copyText(buildSkillPrompt());
-    showToast(ok ? '已复制 skill 指令，粘到 Cursor 聊天' : '复制失败');
-  });
-
-  $('btn-copy-caption').addEventListener('click', async () => {
-    const sub = capSubtitle.value.trim();
-    const intro = capIntro.value.trim();
-    if (!sub && !intro) { showToast('副标题和简介都还没填'); return; }
-    const text = [sub, intro].filter(Boolean).join('\n\n');
-    const ok = await copyText(text);
-    showToast(ok ? '已复制 caption，粘到小红书发布框' : '复制失败');
-  });
-
-  // ---------- 导出 ZIP ----------
-
-  const slugFromTitle = (title) => {
-    const t = (title || 'untitled').replace(/[\\/:*?"<>|\s]/g, '').slice(0, 16);
-    const d = new Date();
-    const ymd = `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}`;
-    return `${ymd}-${t || 'untitled'}`;
-  };
-
-  const downloadBlob = (blob, filename) => {
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url; a.download = filename;
-    document.body.appendChild(a); a.click(); a.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 200);
-  };
-
-  const slideToBlob = (slide) => new Promise((resolve, reject) => {
-    html2canvas(slide, {
-      width: SLIDE_W, height: SLIDE_H,
-      scale: 1, backgroundColor: '#ffffff',
-      useCORS: true, logging: false,
-    }).then(canvas => canvas.toBlob(b => b ? resolve(b) : reject(new Error('toBlob 失败')), 'image/png'))
-      .catch(reject);
-  });
-
-  const exportZipBtn = $('btn-export-zip');
-
-  exportZipBtn.addEventListener('click', async () => {
-    const slides = stage.querySelectorAll('.slide');
-    if (!slides.length) { showToast('还没有 slides，先写正文'); return; }
-    const origText = exportZipBtn.textContent;
-    exportZipBtn.disabled = true;
-    try {
-      const zip = new JSZip();
-      const total = slides.length;
-      for (let i = 0; i < total; i++) {
-        exportZipBtn.textContent = `渲染中 ${i+1}/${total}...`;
-        const blob = await slideToBlob(slides[i]);
-        const kind = slides[i].dataset.kind;
-        const name = `${String(i+1).padStart(2,'0')}-${kind}.png`;
-        zip.file(name, blob);
-      }
-      // 附 caption.txt
-      const sub = capSubtitle.value.trim();
-      const intro = capIntro.value.trim();
-      if (sub || intro) {
-        const title = extractTitle(input.value) || '';
-        const txt = [
-          '【副标题】', sub || '（未填）', '',
-          '【简介】', intro || '（未填）', '',
-          '【源文章标题】', title,
-        ].join('\n');
-        zip.file('caption.txt', txt);
-      }
-      exportZipBtn.textContent = '打包中...';
-      const zipBlob = await zip.generateAsync({ type: 'blob' });
-      const slug = slugFromTitle(extractTitle(input.value));
-      downloadBlob(zipBlob, `xhs-${slug}.zip`);
-      showToast(`已导出 ${total} 张图`);
-    } catch (e) {
-      console.error(e);
-      showToast('导出失败：' + e.message);
-    } finally {
-      exportZipBtn.disabled = false;
-      exportZipBtn.textContent = origText;
-    }
-  });
-
-  // ---------- 模态开关 + 刷新 ----------
-
-  let dirty = true;
-  const refreshSlides = () => {
-    if (!overlay.classList.contains('show')) { dirty = true; return; }
-    const slides = buildAllSlides();
-    renderThumbs(slides);
-    dirty = false;
-  };
-
-  const openExporter = () => {
-    overlay.classList.add('show');
-    // 每次打开都重新分页（文章可能变了）
-    refreshSlides();
-  };
-  const closeExporter = () => {
-    overlay.classList.remove('show');
-  };
-
-  $('btn-export').addEventListener('click', openExporter);
-  $('exporter-close').addEventListener('click', closeExporter);
-  overlay.addEventListener('click', e => { if (e.target === overlay) closeExporter(); });
-  document.addEventListener('keydown', e => {
-    if (e.key === 'Escape' && overlay.classList.contains('show')) closeExporter();
-  });
-  // 输入变化 → 模态打开时实时重排
-  input.addEventListener('input', () => { dirty = true; if (overlay.classList.contains('show')) refreshSlides(); });
-})();
-</script>
+<script src="assets/themes.js"></script>
+<script src="assets/app.js"></script>
 </body>
 </html>

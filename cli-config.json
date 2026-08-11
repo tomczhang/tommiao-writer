@@ -1,0 +1,20 @@
+{
+  "_说明": "本地 agent CLI 预设。active 是默认预设；args 里的 {promptFile} 会替换为提示词临时文件路径，{prompt} 替换为提示词全文；两者都没有时提示词从 stdin 灌入。env 会合并进子进程环境变量。",
+  "active": "codex",
+  "timeoutMs": 300000,
+  "presets": {
+    "qoder": {
+      "label": "Qoder CLI",
+      "command": "qodercli",
+      "args": ["-p", "--permission-mode", "dont_ask", "--tools", ""],
+      "env": {
+        "BUN_OPTIONS": "--preload=/Users/tomczhang/.loongsuite-pilot/hooks/qodercli-token-intercept.mjs"
+      }
+    },
+    "codex": {
+      "label": "Codex CLI",
+      "command": "codex",
+      "args": ["exec", "--skip-git-repo-check", "--sandbox", "read-only", "-"]
+    }
+  }
+}
