@@ -438,6 +438,7 @@
         currentTheme = id;
         localStorage.setItem('gzh-theme', id);
         renderThemeBar();
+        buildToolbar(); // 行内按钮样式跟随主题重绘
         update();
       });
       themeBar.appendChild(btn);
@@ -472,31 +473,33 @@
     commitHistory();
   };
 
+  // 按使用频率降序；[行内渲染器 key, 按钮文字, 提示, 前缀, 后缀]
+  // 按钮文字会直接用当前主题的真实样式渲染（所见即所得）
   const INLINE_TOOLS = [
-    ['加粗', '主色加粗（核心概念，全文 ≤5 处）', '**', '**'],
-    ['高亮', '渐变高亮（每段 ≤2 处）', '==', '=='],
-    ['下划线', '主色下划线（正文关键词默认标记）', '++', '++'],
-    ['荧光笔', '黄底荧光笔（重点句）', '%%', '%%'],
-    ['标签', '背景标签（概念/专名）', '[[', ']]'],
-    ['删除线', '删除线（被淘汰的旧概念）', '~~', '~~'],
-    ['行内代码', '行内代码（命令/标识符）', '`', '`'],
+    ['underline', '下划线', '主色下划线（正文关键词默认标记，用得最多）', '++', '++'],
+    ['strong', '加粗', '主色加粗（核心概念，全文 ≤5 处）', '**', '**'],
+    ['highlight', '高亮', '渐变高亮（全文 ≤3 处）', '==', '=='],
+    ['mark', '荧光笔', '黄底荧光笔（重点句）', '%%', '%%'],
+    ['tag', '标签', '背景标签（概念/专名）', '[[', ']]'],
+    ['code', '行内代码', '行内代码（命令/标识符）', '`', '`'],
+    ['strike', '删除线', '删除线（被淘汰的旧概念）', '~~', '~~'],
   ];
 
+  // 按用户指定顺序排列；[单色图示, 按钮文字, 插入模板]（:::tip 语法仍支持，仅不设按钮）
   const BLOCK_TOOLS = [
-    ['金句', '!! 这里是核心金句'],
-    ['引用', '> 引用内容'],
-    ['提示', ':::tip 提示标题\n提示内容\n:::'],
-    ['信息', ':::info 补充信息\n信息内容\n:::'],
-    ['流程', ':::steps\n第一步|描述\n第二步|描述\n第三步|描述\n> 底部说明（可删）\n:::'],
-    ['三列', ':::cols\n方案A|描述\n方案B|描述\n方案C|描述\n:::'],
-    ['时间线', ':::timeline\nCASE 01|标题一|内容一\nCASE 02|标题二|内容二\n:::'],
-    ['居中金句', ':::center\n居中金句一行\n:::'],
-    ['代码块', '```bash\n命令或代码\n```'],
-    ['表格', '| 列1 | 列2 | 列3 |\n| --- | --- | --- |\n| 内容 | 内容 | 内容 |'],
-    ['图片', '![图片说明](图片URL)'],
-    ['目录', '[TOC]'],
-    ['封面', ':::cover\n标签：FEATURE\n旧认知：被颠覆的旧观念\n标题：主标题前半\n高亮词：强调词\n标题2：第二行（可删）\n副标题：关键词 · 用点分隔\n品牌：汤姆喵的奇妙旅行\n:::'],
-    ['签名', ':::sign\n汤姆喵\n一个重度 AI 使用者的真实观察\n:::'],
+    ['⬒', '封面', ':::cover\n标签：FEATURE\n旧认知：被颠覆的旧观念\n标题：主标题前半\n高亮词：强调词\n标题2：第二行（可删）\n副标题：关键词 · 用点分隔\n品牌：汤姆喵的奇妙旅行\n:::'],
+    ['☰', '目录', '[TOC]'],
+    ['❝', '金句', '!! 这里是核心金句'],
+    ['═', '居中金句', ':::center\n居中金句一行\n:::'],
+    ['❞', '引用', '> 引用内容'],
+    ['ⓘ', '信息', ':::info 补充信息\n信息内容\n:::'],
+    ['✎', '签名', ':::sign\n汤姆喵\n一个重度 AI 使用者的真实观察\n:::'],
+    ['▣', '图片', '![图片说明](图片URL)'],
+    ['</>', '代码块', '```bash\n命令或代码\n```'],
+    ['⊞', '表格', '| 列1 | 列2 | 列3 |\n| --- | --- | --- |\n| 内容 | 内容 | 内容 |'],
+    ['⇢', '流程', ':::steps\n第一步|描述\n第二步|描述\n第三步|描述\n> 底部说明（可删）\n:::'],
+    ['‖‖', '三列', ':::cols\n方案A|描述\n方案B|描述\n方案C|描述\n:::'],
+    ['⋮', '时间线', ':::timeline\nCASE 01|标题一|内容一\nCASE 02|标题二|内容二\n:::'],
   ];
 
   // ---------- 工具条悬浮样式预览 ----------
@@ -550,10 +553,15 @@
 
   const buildToolbar = () => {
     const inlineBar = $('toolbar-inline');
-    INLINE_TOOLS.forEach(([label, tip, b, a]) => {
+    const blockBar = $('toolbar-block');
+    inlineBar.innerHTML = '';
+    blockBar.innerHTML = '';
+    const theme = themes[currentTheme];
+    INLINE_TOOLS.forEach(([key, label, tip, b, a]) => {
       const btn = document.createElement('button');
       btn.className = 'tool';
-      btn.textContent = label;
+      // 按钮文字直接穿上当前主题的真实样式
+      btn.innerHTML = theme.inline[key](label);
       btn.title = tip + `　${b}文字${a}`;
       btn.addEventListener('mousedown', (e) => e.preventDefault()); // 保住 textarea 选区
       btn.addEventListener('click', () => { hidePop(); wrapSelection(b, a); });
@@ -562,11 +570,10 @@
       btn.addEventListener('mouseleave', hidePop);
       inlineBar.appendChild(btn);
     });
-    const blockBar = $('toolbar-block');
-    BLOCK_TOOLS.forEach(([label, tpl]) => {
+    BLOCK_TOOLS.forEach(([glyph, label, tpl]) => {
       const btn = document.createElement('button');
       btn.className = 'tool';
-      btn.textContent = label;
+      btn.innerHTML = `<span class="glyph">${glyph}</span>${label}`;
       btn.title = tpl.split('\n')[0];
       btn.addEventListener('mousedown', (e) => e.preventDefault());
       btn.addEventListener('click', () => { hidePop(); insertBlock(tpl); });

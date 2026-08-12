@@ -173,7 +173,11 @@ const serveStatic = (req, res) => {
   if (!filePath.startsWith(ROOT)) { res.writeHead(403); res.end('Forbidden'); return; }
   fs.readFile(filePath, (err, data) => {
     if (err) { res.writeHead(404); res.end('Not Found'); return; }
-    res.writeHead(200, { 'Content-Type': MIME[path.extname(filePath)] || 'application/octet-stream' });
+    res.writeHead(200, {
+      'Content-Type': MIME[path.extname(filePath)] || 'application/octet-stream',
+      // 本地开发工具：禁止浏览器缓存静态资源，避免改完代码后看到旧版
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
+    });
     res.end(data);
   });
 };

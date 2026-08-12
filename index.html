@@ -3,154 +3,243 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>公众号排版系统 · 汤姆喵</title>
+<title>排版机® · 汤姆喵</title>
 <style>
   :root {
-    --theme: rgb(20, 20, 20);
-    --bg: #f5f5f7;
+    --ink: #1a1a1a;
+    --ink-soft: #555555;
+    --muted: #9a938a;
+    --cream: #faf6ec;
     --panel: #ffffff;
-    --border: #e5e5ea;
-    --muted: #8e8e93;
-    --wechat-font: "PingFang SC", system-ui, -apple-system, BlinkMacSystemFont,
-      "Helvetica Neue", "Hiragino Sans GB", "Microsoft YaHei UI",
-      "Microsoft YaHei", Arial, sans-serif;
+    --border: #e8e2d4;
+    --border-strong: #1a1a1a;
+    --marker: #ffe28a;
+    --marker-soft: #fff3c9;
+    --font: -apple-system, BlinkMacSystemFont, "Helvetica Neue",
+      "PingFang SC", "Hiragino Sans GB", "Noto Sans SC",
+      "Microsoft YaHei", sans-serif;
+    --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.04), 0 10px 26px rgba(56, 45, 27, 0.07);
+    --shadow-lift: 0 8px 18px rgba(56, 45, 27, 0.14);
   }
   * { box-sizing: border-box; }
   html, body { height: 100%; margin: 0; }
   body {
-    font-family: var(--wechat-font);
-    background: var(--bg);
-    color: #1d1d1f;
+    font-family: var(--font);
+    color: var(--ink);
     -webkit-font-smoothing: antialiased;
+    display: flex;
+    flex-direction: column;
+    /* Oil® 式奶油底 + 极淡网格纹理 */
+    background-color: var(--cream);
+    background-image:
+      linear-gradient(rgba(26, 26, 26, 0.035) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(26, 26, 26, 0.035) 1px, transparent 1px);
+    background-size: 56px 56px;
   }
+
+  /* ============ 顶部：品牌字标 + 主题 + 动作 ============ */
   header.top {
-    padding: 12px 24px;
-    border-bottom: 1px solid var(--border);
-    background: var(--panel);
+    padding: 18px 28px 14px;
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 16px;
     flex-wrap: wrap;
   }
-  header.top h1 { font-size: 16px; margin: 0; font-weight: 600; }
-  .meta { font-size: 12px; color: var(--muted); }
+  .brand { display: flex; align-items: baseline; gap: 12px; }
+  .brand .dot {
+    width: 9px; height: 9px;
+    border-radius: 50%;
+    background: var(--ink);
+    align-self: center;
+    flex-shrink: 0;
+  }
+  .brand h1 {
+    margin: 0;
+    font-size: 26px;
+    font-weight: 800;
+    letter-spacing: -1.2px;
+    line-height: 1;
+  }
+  .brand h1 sup {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0;
+    vertical-align: super;
+  }
+  .brand .sub {
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--muted);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+  }
   .actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+
+  /* 胶囊按钮体系 */
   button {
     font-family: inherit;
     font-size: 13px;
-    padding: 8px 14px;
-    border: 1px solid var(--border);
-    background: #fff;
-    color: #1d1d1f;
-    border-radius: 8px;
-    cursor: pointer;
-    transition: background .15s ease;
-  }
-  button:hover { background: #f0f0f3; }
-  button.primary {
-    background: var(--theme);
-    color: #fff;
-    border-color: var(--theme);
-  }
-  button.primary:hover { background: #000; }
-  button.ai {
-    background: #fff;
-    color: #1d1d1f;
-    border: 1px solid #1d1d1f;
     font-weight: 600;
+    padding: 8px 16px;
+    border: 1px solid var(--border);
+    background: rgba(255, 255, 255, 0.85);
+    color: var(--ink-soft);
+    border-radius: 999px;
+    cursor: pointer;
+    transition: all 0.2s ease-out;
   }
-  button.ai:hover { background: #f0f0f3; }
-  button.ai:disabled { opacity: .55; cursor: wait; }
+  button:hover {
+    color: var(--ink);
+    border-color: var(--ink);
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-lift);
+  }
+  button.primary {
+    background: var(--ink);
+    color: #fff;
+    border-color: var(--ink);
+  }
+  button.primary:hover { background: #000; color: #fff; }
+  button.ai {
+    background: rgba(255, 255, 255, 0.85);
+    color: var(--ink);
+    border: 1px solid var(--ink);
+    font-weight: 700;
+  }
+  button.ai:hover { background: var(--marker); border-color: var(--ink); }
+  button.ai:disabled { opacity: .55; cursor: wait; transform: none; box-shadow: none; }
   select {
     font-family: inherit;
-    font-size: 13px;
-    padding: 7px 8px;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 8px 10px;
     border: 1px solid var(--border);
-    border-radius: 8px;
-    background: #fff;
-    color: #1d1d1f;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.85);
+    color: var(--ink-soft);
   }
-  /* 主题切换 chips */
+
+  /* 主题切换 chips —— 黄色马克笔选中态 */
   .theme-bar { display: flex; gap: 6px; align-items: center; }
   .theme-chip {
     display: inline-flex; align-items: center; gap: 6px;
-    padding: 6px 12px; border-radius: 999px; font-size: 12px;
+    padding: 7px 14px; font-size: 12px; font-weight: 700;
   }
   .theme-chip .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
-  .theme-chip.active { background: #1d1d1f; color: #fff; border-color: #1d1d1f; }
+  .theme-chip.active {
+    background: var(--marker);
+    color: var(--ink);
+    border-color: var(--ink);
+  }
 
+  /* ============ 主区：两张悬浮白卡 + 拖拽手柄 ============ */
   main {
     --split: 50%;
+    flex: 1;
+    min-height: 0;
     display: grid;
-    grid-template-columns: var(--split) 6px 1fr;
-    background: var(--border);
-    height: calc(100vh - 61px);
+    grid-template-columns: var(--split) 14px 1fr;
+    padding: 4px 24px 24px;
   }
-  /* 左右分栏拖拽手柄 */
+  .panel {
+    background: var(--panel);
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    min-height: 0;
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    box-shadow: var(--shadow-card);
+    overflow: hidden;
+  }
   .split-handle {
-    background: var(--border);
     cursor: col-resize;
     position: relative;
-    transition: background .15s ease;
+    transition: opacity .15s ease;
   }
   .split-handle::after {
     content: '';
     position: absolute;
     left: 50%; top: 50%;
     transform: translate(-50%, -50%);
-    width: 2px; height: 36px;
-    border-radius: 2px;
-    background: #c7c7cc;
+    width: 3px; height: 40px;
+    border-radius: 3px;
+    background: #d5cdbc;
   }
-  .split-handle:hover, .split-handle.dragging { background: #d1d1d6; }
-  .split-handle:hover::after, .split-handle.dragging::after { background: #8e8e93; }
-  .panel { background: var(--panel); display: flex; flex-direction: column; min-width: 0; }
+  .split-handle:hover::after, .split-handle.dragging::after { background: var(--ink); }
+
+  /* 面板头：N° 编号 + 小型大写标签 */
   .panel header.sub {
-    padding: 8px 16px;
+    padding: 12px 18px 10px;
     border-bottom: 1px solid var(--border);
-    font-size: 12px;
+    font-size: 11px;
+    font-weight: 700;
     color: var(--muted);
-    background: #fafafa;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
     display: flex;
     justify-content: space-between;
     align-items: center;
     gap: 8px;
+    background: #fffdf8;
   }
+  .panel header.sub .no {
+    color: var(--ink);
+    margin-right: 8px;
+  }
+
   /* 编辑器工具条 */
   .toolbar {
-    padding: 6px 12px;
+    padding: 8px 14px;
     border-bottom: 1px solid var(--border);
-    background: #fcfcfd;
+    background: #fffdf8;
     display: flex;
-    gap: 4px;
+    gap: 5px;
     flex-wrap: wrap;
     align-items: center;
   }
   .toolbar .group-label {
-    font-size: 11px; color: var(--muted); margin-right: 2px; flex-shrink: 0;
+    font-size: 10px; font-weight: 700; color: var(--muted);
+    letter-spacing: 1.5px; text-transform: uppercase;
+    margin-right: 4px; flex-shrink: 0;
   }
   .toolbar button.tool {
     font-size: 12px;
-    padding: 4px 9px;
-    border-radius: 6px;
+    font-weight: 600;
+    padding: 4px 11px;
     background: #fff;
   }
-  .toolbar button.tool:hover { background: #eef2ff; border-color: #c7d2fe; }
-  #btn-punct {
-    font-size: 11px; padding: 4px 9px; border-radius: 6px;
-    color: var(--muted); border-color: transparent; background: transparent;
+  .toolbar button.tool:hover {
+    background: var(--marker-soft);
+    border-color: #e7c96a;
+    transform: none;
+    box-shadow: none;
   }
-  #btn-punct.warn { color: #d9831f; border-color: #f5d9ac; background: #fff8ec; }
+  .toolbar button.tool .glyph {
+    color: var(--muted);
+    font-size: 11px;
+    margin-right: 5px;
+    font-family: ui-monospace, Menlo, monospace;
+  }
+  #btn-punct {
+    font-size: 11px; padding: 4px 11px;
+    color: var(--muted); border-color: transparent; background: transparent;
+    letter-spacing: 0; text-transform: none;
+  }
+  #btn-punct:hover { transform: none; box-shadow: none; border-color: var(--border); }
+  #btn-punct.warn { color: #b26a00; border-color: #e7c96a; background: var(--marker-soft); }
+  #char-count { letter-spacing: 0; text-transform: none; font-weight: 600; }
+
   /* 工具条悬浮样式预览 */
   .style-pop {
     position: fixed;
     z-index: 300;
     background: #fff;
     border: 1px solid var(--border);
-    border-radius: 12px;
-    box-shadow: 0 12px 36px rgba(0, 0, 0, 0.18);
-    padding: 12px 14px;
+    border-radius: 16px;
+    box-shadow: 0 16px 40px rgba(56, 45, 27, 0.18);
+    padding: 14px 16px;
     width: 380px;
     max-height: 70vh;
     overflow: hidden;
@@ -159,10 +248,12 @@
   }
   .style-pop.show { display: block; }
   .style-pop .pop-label {
-    margin: 0 0 8px;
-    font-size: 11px;
+    margin: 0 0 10px;
+    font-size: 10px;
+    font-weight: 700;
     color: var(--muted);
-    letter-spacing: 0.05em;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
   }
 
   textarea#input {
@@ -172,30 +263,46 @@
     outline: 0;
     resize: none;
     padding: 20px;
-    font-family: var(--wechat-font);
+    font-family: var(--font);
     font-size: 14px;
-    line-height: 1.8;
-    color: #1d1d1f;
+    line-height: 1.9;
+    color: var(--ink);
     background: #fff;
   }
+
+  /* 预览区 —— 暖灰舞台 + 手机 */
   .preview-wrap {
     flex: 1;
     overflow: auto;
     padding: 24px;
-    background: #e9e9ed;
+    background: #f5f1e6;
     display: flex;
     justify-content: center;
     align-items: flex-start;
+    position: relative;
   }
-  /* 手机外框 —— 模拟微信公众号阅读视图 */
+  /* Oil® 式背景幽灵编号 */
+  .preview-wrap::before {
+    content: '02';
+    position: absolute;
+    right: 18px;
+    bottom: 4px;
+    font-size: 120px;
+    font-weight: 800;
+    letter-spacing: -6px;
+    color: rgba(26, 26, 26, 0.045);
+    line-height: 1;
+    pointer-events: none;
+  }
   .phone {
     width: 375px;
     background: #fff;
     border-radius: 36px;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12), 0 0 0 10px #1d1d1f, 0 0 0 11px #2a2a2e;
+    box-shadow: 0 8px 32px rgba(56, 45, 27, 0.14), 0 0 0 10px #1a1a1a, 0 0 0 11px #2a2a2e;
     overflow: hidden;
     position: relative;
     margin: 8px 0 24px;
+    z-index: 1;
   }
   .phone-statusbar {
     height: 44px;
@@ -257,37 +364,41 @@
     -webkit-overflow-scrolling: touch;
   }
   .phone-content { padding: 16px 14px 40px; }
+
   .toast {
     position: fixed;
     left: 50%;
     bottom: 32px;
     transform: translateX(-50%) translateY(20px);
-    background: rgb(20, 20, 20);
+    background: var(--ink);
     color: #fff;
-    padding: 10px 18px;
+    padding: 10px 20px;
     border-radius: 999px;
     font-size: 13px;
+    font-weight: 600;
     opacity: 0;
     pointer-events: none;
     transition: all .25s ease;
     z-index: 200;
     max-width: 80vw;
+    box-shadow: var(--shadow-lift);
   }
   .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
   @media (max-width: 960px) {
-    main { grid-template-columns: 1fr; height: auto; }
+    main { grid-template-columns: 1fr; height: auto; padding: 4px 16px 16px; row-gap: 14px; }
     .split-handle { display: none; }
     .panel { min-height: 50vh; }
     .phone { width: 340px; }
   }
-
 </style>
 </head>
 <body>
 <header class="top">
-  <div>
-    <h1>公众号排版系统</h1>
-    <div class="meta">手动排版 + AI 一键排版 · 双主题 · 合规校验（span leaf / 全角标点）</div>
+  <div class="brand">
+    <span class="dot"></span>
+    <h1>排版机<sup>®</sup></h1>
+    <span class="sub">Markdown in · WeChat out / AI-powered</span>
   </div>
   <div class="theme-bar" id="theme-bar"></div>
   <div class="actions">
@@ -296,14 +407,14 @@
     <button id="btn-ai-undo" style="display:none" title="还原到 AI 排版前的内容">还原</button>
     <button id="btn-sample">示例</button>
     <button id="btn-clear">清空</button>
-    <button id="btn-copy" class="primary">复制到公众号</button>
+    <button id="btn-copy" class="primary">复制到公众号 →</button>
   </div>
 </header>
 
 <main>
   <section class="panel">
     <header class="sub">
-      <span>Markdown 源码（扩展语法，见工具条悬浮提示）</span>
+      <span><span class="no">N°01</span>Markdown 源码</span>
       <span style="display:flex;align-items:center;gap:8px;">
         <button id="btn-punct">标点 ✓</button>
         <span id="char-count">0 字</span>
@@ -321,7 +432,7 @@
   </section>
   <div class="split-handle" id="split-handle" title="拖拽调整左右宽度"></div>
   <section class="panel">
-    <header class="sub"><span>手机端预览（375pt · 所见即复制产物）</span><span id="phone-time">9:41</span></header>
+    <header class="sub"><span><span class="no">N°02</span>手机预览 · 所见即复制产物</span><span id="phone-time">9:41</span></header>
     <div class="preview-wrap">
       <div class="phone">
         <div class="phone-statusbar">
