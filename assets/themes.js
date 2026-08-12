@@ -26,11 +26,7 @@ window.GZH_THEMES = (() => {
   // 全主题共用的中性色 + 字体
   const N = {
     yellow: '#FDE68A',
-    warnBg: '#FFFBEB',
-    warnText: '#92400E',
     red: '#FECACA',
-    warnOrange: 'rgb(255,76,0)',
-    warnGray: 'rgb(136,136,136)',
     heading: '#111827',
     body: '#374151',
     second: '#4B5563',
@@ -127,7 +123,6 @@ ${line}
         em: (t) => `<em style="font-style:italic;color:${N.body};">${leaf(t)}</em>`,
         highlight: (t) => `<span style="background:linear-gradient(120deg,${N.yellow} 0%,rgba(255,255,255,0) 100%);padding:0 4px;border-radius:2px;font-weight:600;color:${N.heading};">${leaf(t)}</span>`,
         underline: (t) => `<span style="border-bottom:2px solid ${P.lightLine};font-weight:600;">${leaf(t)}</span>`,
-        redline: (t) => `<span style="border-bottom:2px solid ${N.red};">${leaf(t)}</span>`,
         strike: (t) => `<span style="background:${N.grayBg};color:${N.note};padding:2px 6px;border-radius:4px;font-size:13px;text-decoration:line-through;font-weight:600;">${leaf(t)}</span>`,
         mark: (t) => `<span style="color:${N.heading};font-weight:bold;border-bottom:3px solid ${N.yellow};">${leaf(t)}</span>`,
         tag: (t) => `<strong style="color:${P.main};background:${rgba(P.main, 0.1)};padding:0 4px;border-radius:2px;">${leaf(t)}</strong>`,
@@ -160,8 +155,12 @@ ${line}
           return `<p style="margin-bottom:16px;font-size:14px;line-height:1.9;text-align:justify;color:${N.body};">${html}</p>`;
         },
         quote(paras) {
-          const inner = paras.map((h) => `<p style="font-size:13px;color:${N.body};margin:0 0 4px;line-height:1.6;">${h}</p>`).join('');
-          return `<section style="background:${N.palest};border:1px dashed ${N.divider};border-radius:8px;padding:12px 16px;margin-bottom:24px;text-align:justify;">${inner}</section>`;
+          const inner = paras.map((h) => `<p style="margin:0 0 8px;font-size:14px;color:${N.second};line-height:1.9;text-align:justify;">${h}</p>`).join('');
+          return `<section style="margin:8px 0 28px;padding:0 6px;">
+<p style="margin:0;font-size:30px;line-height:1;color:${P.main};font-weight:900;font-family:Georgia,'Times New Roman',serif;">${leaf('“')}</p>
+${inner}
+<section style="width:36px;height:2px;background:${P.lightLine};overflow:hidden;">${FILL}</section>
+</section>`;
         },
         golden(html) {
           return `<section style="background:#FFFFFF;border:1px dashed ${P.lightBorder};border-radius:8px;padding:14px 16px;margin-bottom:24px;text-align:center;">
@@ -172,6 +171,13 @@ ${line}
           return `<p style="font-size:14px;margin-bottom:20px;text-align:center;color:${P.main};font-weight:700;letter-spacing:1px;border-top:1px solid ${N.grayBg};border-bottom:1px solid ${N.grayBg};padding:12px 0;">${html}</p>`;
         },
         ul(items) {
+          const rows = items.map((h) => `<section style="display:flex;align-items:flex-start;gap:12px;margin-bottom:14px;">
+<span style="display:inline-block;width:10px;height:10px;background:${P.main};border-radius:50%;flex-shrink:0;margin-top:8px;">${FILL}</span>
+<p style="font-size:14px;color:${N.body};margin:0;line-height:1.9;flex:1;">${h}</p>
+</section>`).join('');
+          return `<section style="margin-bottom:20px;">${rows}</section>`;
+        },
+        ulPill(items) {
           const rows = items.map((h) => `<section style="margin-bottom:10px;">
 <p style="margin:0;"><span style="display:inline-block;font-size:13px;font-weight:700;color:${P.main};background:${rgba(P.main, 0.08)};padding:3px 10px;border-radius:999px;"><span style="display:inline-block;width:6px;height:6px;background:${P.main};border-radius:50%;margin-right:5px;vertical-align:middle;">${FILL}</span>${h}</span></p>
 </section>`).join('');
@@ -186,12 +192,14 @@ ${line}
         },
         fence: darkFence,
         table({ head, rows }) {
-          const th = head.map((h) => `<th style="background:${P.main};color:#ffffff;font-weight:700;padding:8px 12px;text-align:left;font-size:13px;">${h}</th>`).join('');
+          // 列多时给表格设最小宽度，容器 overflow-x 横向滑动，避免每列被压成竖排
+          const minW = head.length >= 4 ? `min-width:${head.length * 130}px;` : '';
+          const th = head.map((h) => `<th style="background:${P.main};color:#ffffff;font-weight:700;padding:8px 12px;text-align:left;font-size:13px;white-space:nowrap;">${h}</th>`).join('');
           const trs = rows.map((r, i) => {
             const bg = i % 2 === 1 ? 'background:#F9FAFB;' : '';
-            return `<tr>${r.map((c) => `<td style="padding:8px 12px;border-bottom:1px solid ${N.border};color:${N.body};font-size:13px;${bg}">${c}</td>`).join('')}</tr>`;
+            return `<tr>${r.map((c) => `<td style="padding:8px 12px;border-bottom:1px solid ${N.border};color:${N.body};font-size:13px;line-height:1.7;vertical-align:top;${bg}">${c}</td>`).join('')}</tr>`;
           }).join('');
-          return `<section style="margin-bottom:24px;overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:13px;"><thead><tr>${th}</tr></thead><tbody>${trs}</tbody></table></section>`;
+          return `<section style="margin-bottom:24px;overflow-x:scroll;-webkit-overflow-scrolling:touch;"><table style="width:100%;${minW}border-collapse:collapse;font-size:13px;"><thead><tr>${th}</tr></thead><tbody>${trs}</tbody></table></section>`;
         },
         hr() {
           return `<section style="margin:32px 20px;height:1px;background:linear-gradient(to right,${rgba(P.main, 0.25)},transparent);overflow:hidden;">${FILL}</section>`;
@@ -215,18 +223,6 @@ ${caption ? `<span style="font-size:12px;color:${N.aux};">${leaf(caption)}</span
           return `<section style="padding:6px 0 4px;margin-bottom:16px;">
 <p style="margin-bottom:6px;font-size:12px;font-weight:700;color:${N.aux};letter-spacing:1px;"><span style="color:${P.main};">${leaf('✦ ' + (title || '提示'))}</span></p>
 ${paras.map((h) => `<p style="font-size:13px;color:${N.body};margin:0 0 4px;line-height:1.7;">${h}</p>`).join('')}
-</section>`;
-        },
-        warn({ title, paras }) {
-          return `<section style="padding:6px 0 4px;margin-bottom:16px;">
-<p style="margin-bottom:6px;font-size:12px;font-weight:700;color:${N.aux};letter-spacing:1px;"><span style="color:${N.warnOrange};">${leaf('！' + (title || '踩坑提示') + ' 🕳')}</span></p>
-${paras.map((h) => `<p style="font-size:13px;margin:0 0 4px;line-height:1.7;"><span style="color:${N.warnGray};font-weight:bold;">${h}</span></p>`).join('')}
-</section>`;
-        },
-        danger({ title, paras }) {
-          return `<section style="background:${N.warnBg};border:1px solid ${N.yellow};border-radius:12px;padding:12px 16px;margin-bottom:20px;">
-${title ? `<p style="font-size:13px;color:${N.warnText};margin:0 0 4px;font-weight:800;">${leaf(title)}</p>` : ''}
-${paras.map((h) => `<p style="font-size:13px;color:${N.warnText};margin:0;font-weight:700;line-height:1.7;">${h}</p>`).join('')}
 </section>`;
         },
         info({ title, paras }) {

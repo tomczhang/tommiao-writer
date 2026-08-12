@@ -2,14 +2,12 @@
  * 公众号排版系统 —— 应用逻辑
  *
  * 数据流（源码为准）：
- *   Markdown（扩展语法）→ parse() AST
- *     ├─ renderWeChat(ast, theme) → 合规内联 HTML（预览 = 复制产物，含 <span leaf>）
- *     └─ renderSemantic(ast)     → 语义 HTML（仅供小红书贴图分页渲染）
+ *   Markdown（扩展语法）→ parse() AST → renderWeChat(ast, theme) → 合规内联 HTML（预览 = 复制产物，含 <span leaf>）
  *
  * 扩展语法（工具条会插入这些标记）：
- *   行内：**加粗** *斜体* ==高亮== ++下划线++ __红线__ ~~删除线~~ %%荧光笔%% [[标签]] `code` [文](url)
+ *   行内：**加粗** *斜体* ==高亮== ++下划线++ ~~删除线~~ %%荧光笔%% [[标签]] `code` [文](url)
  *   块级：# ## ### > !!金句 - 1. ``` 表格 --- ![](url) [TOC]
- *         :::tip/warn/danger/info 标题 … :::
+ *         :::tip/info 标题 … :::
  *         :::steps（行=标题|描述）  :::cols（行=标题|描述）
  *         :::timeline（行=标签|标题|内容）  :::center  :::cover（键: 值） :::sign
  */
@@ -35,13 +33,12 @@
     '(==[^=]+==)',                  // 4 高亮
     '(%%[^%]+%%)',                  // 5 荧光笔
     '(\\+\\+[^+]+\\+\\+)',          // 6 下划线
-    '(__[^_]+__)',                  // 7 红线
-    '(~~[^~]+~~)',                  // 8 删除线
-    '(\\*\\*[^*]+\\*\\*)',          // 9 加粗
-    '(\\*[^*\\n]+\\*)',             // 10 斜体
+    '(~~[^~]+~~)',                  // 7 删除线
+    '(\\*\\*[^*]+\\*\\*)',          // 8 加粗
+    '(\\*[^*\\n]+\\*)',             // 9 斜体
   ].join('|'), 'g');
 
-  // renderers: { strong, em, highlight, underline, redline, strike, mark, tag, code, link, plain }
+  // renderers: { strong, em, highlight, underline, strike, mark, tag, code, link, plain }
   const renderInlineWith = (text, r) => {
     let out = '';
     let last = 0;
@@ -59,10 +56,9 @@
       else if (m[4]) out += r.highlight(esc(tok.slice(2, -2)));
       else if (m[5]) out += r.mark(esc(tok.slice(2, -2)));
       else if (m[6]) out += r.underline(esc(tok.slice(2, -2)));
-      else if (m[7]) out += r.redline(esc(tok.slice(2, -2)));
-      else if (m[8]) out += r.strike(esc(tok.slice(2, -2)));
-      else if (m[9]) out += r.strong(esc(tok.slice(2, -2)));
-      else if (m[10]) out += r.em(esc(tok.slice(1, -1)));
+      else if (m[7]) out += r.strike(esc(tok.slice(2, -2)));
+      else if (m[8]) out += r.strong(esc(tok.slice(2, -2)));
+      else if (m[9]) out += r.em(esc(tok.slice(1, -1)));
       last = INLINE_RE.lastIndex;
     }
     if (last < text.length) out += r.plain(esc(text.slice(last)));
@@ -72,27 +68,11 @@
   // 主题行内渲染（纯文本段包 <span leaf>）
   const inlineWx = (text, theme) => renderInlineWith(text, { ...theme.inline, plain: (t) => (t ? leaf(t) : '') });
 
-  // 语义行内渲染（贴图分页用，走 class 样式）
-  const SEM_INLINE = {
-    plain: (t) => t,
-    strong: (t) => `<strong>${t}</strong>`,
-    em: (t) => `<em>${t}</em>`,
-    highlight: (t) => `<span class="wx-highlight">${t}</span>`,
-    mark: (t) => `<span class="wx-highlight">${t}</span>`,
-    underline: (t) => `<span class="wx-underline">${t}</span>`,
-    redline: (t) => `<span class="wx-underline">${t}</span>`,
-    strike: (t) => `<del>${t}</del>`,
-    tag: (t) => `<strong>${t}</strong>`,
-    code: (t) => `<code>${t}</code>`,
-    link: (t, url) => `<a href="${url}">${t}</a>`,
-  };
-  const inlineSem = (text) => renderInlineWith(text, SEM_INLINE);
-
   // ============================================================
   // 块级解析 → AST
   // ============================================================
 
-  const CONTAINER_KINDS = ['tip', 'warn', 'danger', 'info', 'steps', 'cols', 'timeline', 'center', 'cover', 'sign'];
+  const CONTAINER_KINDS = ['tip', 'info', 'steps', 'cols', 'timeline', 'center', 'cover', 'sign'];
 
   const parse = (raw) => {
     const lines = raw.replace(/\r\n/g, '\n').split('\n');
@@ -167,11 +147,13 @@
         continue;
       }
 
-      // 列表
+      // 列表：- 圆点列表（弱强调），* 胶囊列表（强强调）
       if (/^\s*[-*]\s+/.test(line)) {
+        const pill = /^\s*\*\s+/.test(line);
+        const marker = pill ? /^\s*\*\s+/ : /^\s*-\s+/;
         const items = [];
-        while (i < lines.length && /^\s*[-*]\s+/.test(lines[i])) { items.push(lines[i].replace(/^\s*[-*]\s+/, '')); i++; }
-        ast.push({ type: 'ul', items });
+        while (i < lines.length && marker.test(lines[i])) { items.push(lines[i].replace(marker, '')); i++; }
+        ast.push({ type: 'ul', pill, items });
         continue;
       }
       if (/^\s*\d+\.\s+/.test(line)) {
@@ -208,23 +190,24 @@
       c.index = idx;
       c.isLast = idx === chapters.length - 1 && /写在最后|总结|结语|尾声|最后的话/.test(c.text);
       c.num = c.isLast ? '///' : String(idx + 1).padStart(2, '0');
-      if (!c.tag) c.tag = autoTag(c.text, c.num);
+      if (!c.tag) c.tag = autoTag(c.text);
       meta.chapters.push(c);
     });
     return { ast, meta };
   };
 
+  // 英文标签保持短单词，避免在目录卡（110px）里折行
   const TAG_MAP = [
-    [/实测|测评|体验/, 'HANDS-ON TEST'], [/教程|上手|怎么|如何/, 'TUTORIAL'],
-    [/写在最后|总结|结语|尾声/, 'FINAL THOUGHTS'], [/思考|反思|感悟/, 'THOUGHTS'],
-    [/工具|清单|盘点/, 'TOOLBOX'], [/方法|方法论|技巧/, 'METHODOLOGY'],
-    [/背景|起因|缘起/, 'BACKGROUND'], [/案例|实战|实践/, 'CASE STUDY'],
+    [/实测|测评|体验/, 'TEST'], [/教程|上手|怎么|如何/, 'TUTORIAL'],
+    [/写在最后|总结|结语|尾声/, 'FINAL'], [/思考|反思|感悟/, 'THOUGHTS'],
+    [/工具|清单|盘点/, 'TOOLBOX'], [/方法|方法论|技巧/, 'METHOD'],
+    [/背景|起因|缘起/, 'CONTEXT'], [/案例|实战|实践/, 'CASE'],
     [/数据|复盘|回顾/, 'REVIEW'], [/踩坑|避坑|坑/, 'PITFALLS'],
-    [/原理|本质|逻辑/, 'DEEP DIVE'], [/观点|看法/, 'OPINION'],
+    [/原理|本质|逻辑/, 'INSIGHT'], [/观点|看法/, 'OPINION'],
   ];
-  const autoTag = (text, num) => {
+  const autoTag = (text) => {
     for (const [re, tag] of TAG_MAP) if (re.test(text)) return tag;
-    return 'CHAPTER ' + num;
+    return 'CHAPTER';
   };
 
   const parsePipeItems = (linesArr, n) => linesArr
@@ -252,7 +235,7 @@
   // ============================================================
 
   const FLOW_TYPES = ['p', 'quote', 'golden', 'center', 'ul', 'ol', 'fence', 'table', 'image',
-    'tip', 'warn', 'danger', 'info', 'steps', 'cols', 'timeline'];
+    'tip', 'info', 'steps', 'cols', 'timeline'];
 
   const renderWeChat = (parsed, theme) => {
     const { ast, meta } = parsed;
@@ -271,13 +254,18 @@
         case 'quote': html = B.quote(paras(node.paras)); break;
         case 'golden': html = B.golden(inl(node.text)); break;
         case 'center': html = B.center(node.lines.map(inl).join('<br>')); break;
-        case 'ul': html = B.ul(node.items.map(inl)); break;
+        case 'ul': html = node.pill ? B.ulPill(node.items.map(inl)) : B.ul(node.items.map(inl)); break;
         case 'ol': html = B.ol(node.items.map(inl)); break;
         case 'fence': html = B.fence({ lang: esc(node.lang), lines: node.lines.map((l) => esc(l).replace(/^( +)/, (s) => '　'.repeat(Math.ceil(s.length / 2)))) }); break;
-        case 'table': html = B.table({ head: node.head.map(inl), rows: node.rows.map((r) => r.map(inl)) }); break;
+        case 'table': {
+          // 单元格内的 <br> 转真换行（先按 <br> 切开再分段行内渲染，避免被转义成文字）
+          const cell = (c) => c.split(/<br\s*\/?>/i).map(inl).join('<br>');
+          html = B.table({ head: node.head.map(cell), rows: node.rows.map((r) => r.map(cell)) });
+          break;
+        }
         case 'hr': html = B.hr(); break;
         case 'image': html = B.image({ src: esc(node.src), caption: node.caption, isGif: node.isGif }); break;
-        case 'tip': case 'warn': case 'danger': case 'info':
+        case 'tip': case 'info':
           html = B[node.type]({ title: node.title, paras: paras(node.lines) }); break;
         case 'steps': html = B.steps({ items: parsePipeItems(node.lines, 2), note: parseNote(node.lines) }); break;
         case 'cols': html = B.cols({ items: parsePipeItems(node.lines, 2) }); break;
@@ -288,8 +276,7 @@
         }
         case 'toc': {
           if (!meta.chapters.length) break;
-          let items = meta.chapters.map((c) => ({ num: c.num, title: c.text, sub: c.tag }));
-          if (items.length > 4) items = items.slice(0, 3).concat(items[items.length - 1]);
+          const items = meta.chapters.map((c) => ({ num: c.num, title: c.text, sub: c.tag }));
           html = B.toc({ items });
           break;
         }
@@ -319,48 +306,6 @@
       out.push(FLOW_TYPES.includes(node.type) ? theme.wrapFlow(html) : html);
     }
     return theme.container(out.join('\n'));
-  };
-
-  // ============================================================
-  // 渲染：语义 HTML（小红书贴图分页用）
-  // ============================================================
-
-  const renderSemantic = (parsed) => {
-    const out = [];
-    const inl = inlineSem;
-    for (const node of parsed.ast) {
-      switch (node.type) {
-        case 'title': out.push(`<h1>${inl(node.text)}</h1>`); break;
-        case 'chapter': out.push(`<h2>${node.num !== '///' ? node.num + ' · ' : ''}${inl(node.text)}</h2>`); break;
-        case 'sub': out.push(`<h3>${inl(node.text)}</h3>`); break;
-        case 'p': out.push(`<p>${node.linesArr.map(inl).join('<br/>')}</p>`); break;
-        case 'quote': out.push(`<blockquote>${node.paras.map((t) => `<p>${inl(t)}</p>`).join('')}</blockquote>`); break;
-        case 'golden': out.push(`<p class="wx-quote">${inl(node.text)}</p>`); break;
-        case 'center': out.push(`<p class="wx-quote">${node.lines.map(inl).join('<br/>')}</p>`); break;
-        case 'ul': out.push(`<ul>${node.items.map((t) => `<li>${inl(t)}</li>`).join('')}</ul>`); break;
-        case 'ol': out.push(`<ol>${node.items.map((t) => `<li>${inl(t)}</li>`).join('')}</ol>`); break;
-        case 'fence': out.push(`<blockquote class="sem-code">${node.lines.map((l) => `<p><code>${esc(l) || '&nbsp;'}</code></p>`).join('')}</blockquote>`); break;
-        case 'table': out.push(`<ul>${node.rows.map((r) => `<li>${r.map(inl).join(' · ')}</li>`).join('')}</ul>`); break;
-        case 'hr': out.push('<hr/>'); break;
-        case 'image': out.push(`<p>🖼 ${esc(node.caption || '（图片）')}</p>`); break;
-        case 'tip': case 'warn': case 'danger': case 'info':
-          out.push(`<blockquote><p><strong>${esc(node.title || ({ tip: '提示', warn: '踩坑', danger: '警告', info: '旁注' })[node.type])}</strong></p>${node.lines.map((t) => `<p>${inl(t)}</p>`).join('')}</blockquote>`);
-          break;
-        case 'steps': case 'cols':
-          out.push(`<ul>${parsePipeItems(node.lines, 2).map((it) => `<li><strong>${esc(it.t)}</strong>${it.d ? ' — ' + esc(it.d) : ''}</li>`).join('')}</ul>`);
-          break;
-        case 'timeline':
-          out.push(`<ul>${parsePipeItems(node.lines, 3).map((it) => `<li><strong>${esc(it.tag)} ${esc(it.title)}</strong> ${inl(it.body)}</li>`).join('')}</ul>`);
-          break;
-        case 'sign': {
-          const ls = node.lines;
-          out.push(`<p>我是 <strong>${esc(ls[0] || '{{作者名}}')}</strong>，${esc(ls[1] || '')}</p>`);
-          break;
-        }
-        // toc / cover 不进贴图
-      }
-    }
-    return out.join('\n');
   };
 
   // ============================================================
@@ -431,7 +376,6 @@
   const charCount = $('char-count');
   const punctBtn = $('btn-punct');
   const toast = $('toast');
-  const semanticHost = $('semantic-host');
 
   let currentTheme = localStorage.getItem('gzh-theme') || order[0];
   if (!themes[currentTheme]) currentTheme = order[0];
@@ -457,6 +401,30 @@
     localStorage.setItem('gzh-draft', text);
   };
 
+  // ---------- 编辑历史（Ctrl/Cmd+Z 撤销，Shift+Z 或 Ctrl+Y 重做） ----------
+  // textarea 的原生撤销会被程序化赋值打断，这里自建快照栈：
+  // 输入停顿 400ms 落一次快照；工具条插入/AI 排版/标点修复等程序化改动即时落盘
+  const history = { stack: [{ v: '', s: 0 }], idx: 0 };
+  let typeTimer = null;
+  const commitHistory = () => {
+    clearTimeout(typeTimer);
+    const v = input.value;
+    if (history.stack[history.idx] && history.stack[history.idx].v === v) return;
+    history.stack.length = history.idx + 1; // 丢弃重做分支
+    history.stack.push({ v, s: input.selectionStart });
+    if (history.stack.length > 100) history.stack.shift();
+    history.idx = history.stack.length - 1;
+  };
+  const applyHistory = () => {
+    const snap = history.stack[history.idx];
+    input.value = snap.v;
+    input.focus();
+    input.setSelectionRange(snap.s, snap.s);
+    update();
+  };
+  const undoEdit = () => { commitHistory(); if (history.idx > 0) { history.idx--; applyHistory(); } };
+  const redoEdit = () => { if (history.idx < history.stack.length - 1) { history.idx++; applyHistory(); } };
+
   // ---------- 主题切换 ----------
   const themeBar = $('theme-bar');
   const renderThemeBar = () => {
@@ -479,6 +447,7 @@
   // ---------- 编辑器工具条 ----------
 
   const wrapSelection = (before, after) => {
+    commitHistory(); // 先落盘未提交的输入
     const s = input.selectionStart;
     const e = input.selectionEnd;
     const sel = input.value.slice(s, e) || '文字';
@@ -486,9 +455,11 @@
     input.focus();
     input.setSelectionRange(s + before.length, s + before.length + sel.length);
     update();
+    commitHistory();
   };
 
   const insertBlock = (tpl) => {
+    commitHistory();
     const s = input.selectionStart;
     const before = input.value.slice(0, s);
     const prefix = before === '' || before.endsWith('\n\n') ? '' : before.endsWith('\n') ? '\n' : '\n\n';
@@ -498,25 +469,23 @@
     const pos = s + text.length;
     input.setSelectionRange(pos, pos);
     update();
+    commitHistory();
   };
 
   const INLINE_TOOLS = [
-    ['B', '加粗（主色）', '**', '**'],
-    ['高亮', '渐变高亮（每段≤2处）', '==', '=='],
-    ['下划', '主色下划线（关键词标记）', '++', '++'],
-    ['红线', '红色下划线（对比/否定）', '__', '__'],
-    ['荧光', '黄底荧光笔', '%%', '%%'],
-    ['标签', '背景标签', '[[', ']]'],
-    ['删', '删除线（旧概念）', '~~', '~~'],
-    ['`c`', '行内代码', '`', '`'],
+    ['加粗', '主色加粗（核心概念，全文 ≤5 处）', '**', '**'],
+    ['高亮', '渐变高亮（每段 ≤2 处）', '==', '=='],
+    ['下划线', '主色下划线（正文关键词默认标记）', '++', '++'],
+    ['荧光笔', '黄底荧光笔（重点句）', '%%', '%%'],
+    ['标签', '背景标签（概念/专名）', '[[', ']]'],
+    ['删除线', '删除线（被淘汰的旧概念）', '~~', '~~'],
+    ['行内代码', '行内代码（命令/标识符）', '`', '`'],
   ];
 
   const BLOCK_TOOLS = [
     ['金句', '!! 这里是核心金句'],
     ['引用', '> 引用内容'],
     ['提示', ':::tip 提示标题\n提示内容\n:::'],
-    ['踩坑', ':::warn 踩坑提示\n坑的内容\n:::'],
-    ['警告', ':::danger\n强警告内容\n:::'],
     ['信息', ':::info 补充信息\n信息内容\n:::'],
     ['流程', ':::steps\n第一步|描述\n第二步|描述\n第三步|描述\n> 底部说明（可删）\n:::'],
     ['三列', ':::cols\n方案A|描述\n方案B|描述\n方案C|描述\n:::'],
@@ -543,7 +512,7 @@
 
   // 个别块组件的插入模板不能直接独立渲染，用专门的预览源码
   const BLOCK_PREVIEW = {
-    '目录': { md: '[TOC]\n\n## 先说结论\n\n## 实测过程\n\n## 写在最后', pickFirst: true },
+    '目录': { md: '[TOC]\n\n## 先说结论 | OPINION\n\n## 实测过程 | TEST\n\n## 写在最后 | FINAL', pickFirst: true },
     '图片': { md: `![示例图片说明](${PREVIEW_IMG})` },
   };
 
@@ -676,7 +645,7 @@
     }
   };
 
-  const AI_FALLBACK_PROMPT = (md) => `请对下面的公众号文章 Markdown 做排版标记优化（不改写内容）：每段标 1-3 个 ++关键词++；全文 ≤5 处 **加粗**；每段 ≤2 处 ==高亮==；对比/否定用 __文字__；提示类内容转 :::tip/:::warn 块；中文语境标点全角化（代码/URL 除外）；2 个以上 ## 章节时开头加 [TOC]；文末补 :::sign 签名块。直接返回优化后的完整 Markdown，不要解释。\n\n${md}`;
+  const AI_FALLBACK_PROMPT = (md) => `请对下面的公众号文章 Markdown 做排版标记优化（不改写内容）：只在承载核心观点/结论/关键数据的句子里标 ++关键词++（宁缺毋滥，不要每段都标，全文大致每 2-3 段 1 处）；全文 ≤5 处 **加粗**；全文 ≤3 处 ==高亮==；提示类内容转 :::tip 块，补充信息转 :::info 块；中文语境标点全角化（代码/URL 除外）；2 个以上 ## 章节时开头加 [TOC]；文末补 :::sign 签名块。直接返回优化后的完整 Markdown，不要解释。\n\n${md}`;
 
   const runAi = async () => {
     const md = input.value.trim();
@@ -704,6 +673,7 @@
       aiBackup = md;
       input.value = data.markdown;
       update();
+      commitHistory();
       aiUndoBtn.style.display = '';
       showToast(`AI 排版完成（${data.seconds}s），不满意可点「还原」`);
     } catch (e) {
@@ -720,6 +690,7 @@
     aiBackup = null;
     aiUndoBtn.style.display = 'none';
     update();
+    commitHistory();
     showToast('已还原到 AI 排版前');
   };
 
@@ -742,7 +713,7 @@
 
 !! 开头金句：真正的效率不是快，而是不用返工
 
-这是第一段正文。**核心概念**用主色加粗，++关键短语++用主色下划线标记，还可以用 ==渐变高亮== 强调一段里最重要的话。__被否定的说法__走红色下划线，~~过时的旧概念~~用删除线，[[新概念]]可以打个标签，行内命令写成 \`npm install\`。
+这是第一段正文。**核心概念**用主色加粗，++关键短语++用主色下划线标记，还可以用 ==渐变高亮== 强调一段里最重要的话。~~过时的旧概念~~用删除线，[[新概念]]可以打个标签，行内命令写成 \`npm install\`。
 
 ## 先说结论 | OPINION
 
@@ -752,8 +723,8 @@
 提示块适合放操作建议，标题可以自定义。
 :::
 
-:::warn 踩坑提示
-警告块专门记录踩过的坑，别人不用再踩一遍。
+:::info 补充信息
+信息块适合放背景补充和旁注。
 :::
 
 ## 实测过程
@@ -773,8 +744,11 @@ node server.js
 1. 有序列表第一条
 2. 有序列表第二条
 
-- 无序列表（摸鱼绿主题下是胶囊样式）
+- 圆点列表（弱强调，++关键词++照样可标）
 - 第二条
+
+* 胶囊列表（强强调，适合并列要点）
+* 第二条
 
 | 方案 | 成本 | 效果 |
 | --- | --- | --- |
@@ -796,18 +770,61 @@ node server.js
 
   // ---------- 事件绑定 ----------
 
-  $('btn-sample').addEventListener('click', () => { input.value = SAMPLE; update(); });
-  $('btn-clear').addEventListener('click', () => { input.value = ''; update(); input.focus(); });
+  $('btn-sample').addEventListener('click', () => { commitHistory(); input.value = SAMPLE; update(); commitHistory(); });
+  $('btn-clear').addEventListener('click', () => { commitHistory(); input.value = ''; update(); commitHistory(); input.focus(); });
   $('btn-copy').addEventListener('click', copyRich);
   punctBtn.addEventListener('click', () => {
     if (!countHalfPunct(input.value)) { showToast('没有需要修复的半角标点'); return; }
+    commitHistory();
     input.value = fixHalfPunct(input.value);
     update();
+    commitHistory();
     showToast('已把中文语境的半角标点转为全角');
   });
   aiBtn.addEventListener('click', runAi);
   aiUndoBtn.addEventListener('click', undoAi);
-  input.addEventListener('input', update);
+  input.addEventListener('input', () => {
+    update();
+    clearTimeout(typeTimer);
+    typeTimer = setTimeout(commitHistory, 400);
+  });
+  input.addEventListener('keydown', (e) => {
+    if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'z') {
+      e.preventDefault();
+      if (e.shiftKey) redoEdit(); else undoEdit();
+    } else if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'y') {
+      e.preventDefault();
+      redoEdit();
+    }
+  });
+
+  // ---------- 左右分栏宽度拖拽 ----------
+  const splitHandle = $('split-handle');
+  const mainEl = document.querySelector('main');
+  const savedSplit = localStorage.getItem('gzh-split');
+  if (savedSplit) mainEl.style.setProperty('--split', savedSplit);
+  let splitDragging = false;
+  splitHandle.addEventListener('mousedown', (e) => {
+    splitDragging = true;
+    splitHandle.classList.add('dragging');
+    document.body.style.userSelect = 'none';
+    document.body.style.cursor = 'col-resize';
+    e.preventDefault();
+  });
+  window.addEventListener('mousemove', (e) => {
+    if (!splitDragging) return;
+    const rect = mainEl.getBoundingClientRect();
+    const pct = Math.min(75, Math.max(25, ((e.clientX - rect.left) / rect.width) * 100));
+    mainEl.style.setProperty('--split', pct.toFixed(1) + '%');
+  });
+  window.addEventListener('mouseup', () => {
+    if (!splitDragging) return;
+    splitDragging = false;
+    splitHandle.classList.remove('dragging');
+    document.body.style.userSelect = '';
+    document.body.style.cursor = '';
+    localStorage.setItem('gzh-split', mainEl.style.getPropertyValue('--split'));
+  });
 
   // ---------- 时钟 ----------
   const tickClock = () => {
@@ -825,308 +842,7 @@ node server.js
   const draft = localStorage.getItem('gzh-draft');
   if (draft) input.value = draft;
   update();
+  history.stack = [{ v: input.value, s: input.value.length }];
+  history.idx = 0;
   initAi();
-
-  // ============================================================
-  // 小红书贴图导出（沿用原逻辑，分页源改为语义渲染）
-  // ============================================================
-
-  const AUTHOR = '汤姆喵的奇妙旅行';
-  const SLIDE_W = 1242;
-  const SLIDE_H = 1656;
-  const BODY_INNER_H = SLIDE_H - 220 - 60;
-
-  const overlay = $('exporter');
-  const pagesGrid = $('exporter-pages');
-  const stage = $('slide-stage');
-  const measurerContent = $('slide-measurer-content');
-
-  let heroDataUrl = null;
-
-  const collectBlocks = () => {
-    semanticHost.innerHTML = renderSemantic(parsed);
-    return Array.from(semanticHost.children).map((el) => el.cloneNode(true));
-  };
-
-  const measureFits = (blocks) => {
-    measurerContent.innerHTML = '';
-    blocks.forEach((b) => measurerContent.appendChild(b.cloneNode(true)));
-    return measurerContent.scrollHeight <= BODY_INNER_H;
-  };
-
-  const splitLongParagraph = (block) => {
-    if (block.tagName !== 'P') return [block];
-    const html = block.innerHTML;
-    const parts = html.split(/(?<=[。！？!?])/).filter(Boolean);
-    if (parts.length <= 1) return [block];
-    const pieces = [];
-    let buf = '';
-    const flush = () => {
-      const p = document.createElement('p');
-      p.innerHTML = buf;
-      pieces.push(p);
-      buf = '';
-    };
-    for (const part of parts) {
-      const test = document.createElement('p');
-      test.innerHTML = buf + part;
-      if (!measureFits([test]) && buf) { flush(); buf = part; }
-      else buf += part;
-    }
-    if (buf) flush();
-    return pieces.length ? pieces : [block];
-  };
-
-  const paginateBlocks = (blocks) => {
-    const pages = [];
-    let current = [];
-    const isHeading = (el) => /^H[1-3]$/.test(el.tagName);
-
-    for (const block of blocks) {
-      if (!measureFits([block])) {
-        if (current.length) { pages.push(current); current = []; }
-        const splits = splitLongParagraph(block);
-        if (splits.length === 1) pages.push([block]);
-        else {
-          for (const piece of splits) {
-            current.push(piece);
-            if (!measureFits(current)) {
-              current.pop();
-              if (current.length) pages.push(current);
-              current = [piece];
-            }
-          }
-        }
-        continue;
-      }
-      current.push(block);
-      if (!measureFits(current)) {
-        current.pop();
-        if (current.length >= 1 && isHeading(current[current.length - 1])) {
-          const lastHeading = current.pop();
-          if (current.length) pages.push(current);
-          current = [lastHeading, block];
-          if (!measureFits(current)) {
-            current.pop();
-            pages.push(current);
-            current = [block];
-          }
-        } else {
-          if (current.length) pages.push(current);
-          current = [block];
-        }
-      }
-    }
-    if (current.length) pages.push(current);
-    return pages;
-  };
-
-  const buildCoverSlide = (title) => {
-    const el = document.createElement('div');
-    el.className = 'slide cover';
-    el.dataset.kind = 'cover';
-    const heroHtml = heroDataUrl
-      ? `<img class="hero" src="${heroDataUrl}" alt="">`
-      : `<div class="hero-placeholder">封面 hero 图位</div>`;
-    el.innerHTML = `${heroHtml}
-      <div class="cover-title">${esc(title || '未命名文章')}</div>
-      <div class="cover-author">作者：${esc(AUTHOR)}</div>
-      <div class="cover-divider"></div>`;
-    return el;
-  };
-
-  const buildBodySlide = (blocks, pageIdx, totalPages) => {
-    const el = document.createElement('div');
-    el.className = 'slide body';
-    el.dataset.kind = 'body';
-    const content = document.createElement('div');
-    content.className = 'body-content';
-    blocks.forEach((b) => content.appendChild(b.cloneNode(true)));
-    el.appendChild(content);
-    const num = document.createElement('span');
-    num.className = 'page-num';
-    num.textContent = `${pageIdx} / ${totalPages}`;
-    el.appendChild(num);
-    return el;
-  };
-
-  const buildAllSlides = () => {
-    stage.innerHTML = '';
-    const title = parsed.meta.title || '未命名文章';
-    const blocks = collectBlocks();
-    if (blocks.length && blocks[0].tagName === 'H1') blocks.shift();
-    const bodyPages = blocks.length ? paginateBlocks(blocks) : [];
-    const slides = [];
-    const cover = buildCoverSlide(title);
-    stage.appendChild(cover);
-    slides.push(cover);
-    bodyPages.forEach((pageBlocks, i) => {
-      const slide = buildBodySlide(pageBlocks, i + 1, bodyPages.length);
-      stage.appendChild(slide);
-      slides.push(slide);
-    });
-    return slides;
-  };
-
-  const renderThumbs = (slides) => {
-    pagesGrid.innerHTML = '';
-    slides.forEach((slide, i) => {
-      const thumb = document.createElement('div');
-      thumb.className = 'thumb';
-      const inner = document.createElement('div');
-      inner.className = 'thumb-inner';
-      inner.appendChild(slide.cloneNode(true));
-      thumb.appendChild(inner);
-      const idx = document.createElement('span');
-      idx.className = 'idx';
-      idx.textContent = `${i + 1} / ${slides.length}`;
-      thumb.appendChild(idx);
-      const kind = document.createElement('span');
-      kind.className = 'kind';
-      kind.textContent = slide.dataset.kind === 'cover' ? '封面' : '正文';
-      thumb.appendChild(kind);
-      pagesGrid.appendChild(thumb);
-    });
-    requestAnimationFrame(() => {
-      pagesGrid.querySelectorAll('.thumb').forEach((t) => {
-        const scale = t.clientWidth / SLIDE_W;
-        t.querySelector('.thumb-inner').style.transform = `scale(${scale})`;
-        t.style.height = (SLIDE_W * (4 / 3)) * scale + 'px';
-      });
-    });
-  };
-
-  // hero 上传
-  const heroUploader = $('hero-uploader');
-  const heroFile = $('hero-file');
-  const heroPreview = $('hero-preview');
-  const heroPlaceholderText = $('hero-placeholder-text');
-
-  const readAsDataURL = (file) => new Promise((res, rej) => {
-    const fr = new FileReader();
-    fr.onload = () => res(fr.result);
-    fr.onerror = () => rej(fr.error);
-    fr.readAsDataURL(file);
-  });
-
-  const setHero = async (file) => {
-    if (!file) return;
-    heroDataUrl = await readAsDataURL(file);
-    heroPreview.src = heroDataUrl;
-    heroPreview.style.display = 'block';
-    heroPlaceholderText.style.display = 'none';
-    refreshSlides();
-  };
-  const clearHero = () => {
-    heroDataUrl = null;
-    heroPreview.removeAttribute('src');
-    heroPreview.style.display = 'none';
-    heroPlaceholderText.style.display = '';
-    heroFile.value = '';
-    refreshSlides();
-  };
-  heroFile.addEventListener('change', (e) => setHero(e.target.files[0]));
-  heroUploader.addEventListener('dragover', (e) => { e.preventDefault(); heroUploader.classList.add('drag'); });
-  heroUploader.addEventListener('dragleave', () => heroUploader.classList.remove('drag'));
-  heroUploader.addEventListener('drop', (e) => {
-    e.preventDefault();
-    heroUploader.classList.remove('drag');
-    const f = e.dataTransfer.files && e.dataTransfer.files[0];
-    if (f && f.type.startsWith('image/')) setHero(f);
-  });
-  $('btn-hero-clear').addEventListener('click', clearHero);
-
-  // caption
-  const capSubtitle = $('cap-subtitle');
-  const capIntro = $('cap-intro');
-  const updateCapMeta = () => {
-    const sLen = [...capSubtitle.value].length;
-    const iLen = [...capIntro.value].length;
-    $('cap-subtitle-meta').textContent = `${sLen} 字`;
-    $('cap-subtitle-meta').classList.toggle('warn', sLen > 0 && (sLen < 7 || sLen > 15));
-    $('cap-intro-meta').textContent = `${iLen} 字`;
-    $('cap-intro-meta').classList.toggle('warn', iLen > 0 && (iLen < 150 || iLen > 200));
-  };
-  capSubtitle.addEventListener('input', updateCapMeta);
-  capIntro.addEventListener('input', updateCapMeta);
-
-  $('btn-copy-skill-prompt').addEventListener('click', async () => {
-    const md = input.value.trim() || '（请粘贴文章内容）';
-    const ok = await copyText(`请用 tommiao-xiaohongshu-cover skill 处理下面这篇文章，给我封面 hero 图（1024x768）和小红书 caption 文案（副标题 7-15 字 + 简介 150-200 字）。\n\n---\n${md}\n---`);
-    showToast(ok ? '已复制 skill 指令，粘到 agent 聊天' : '复制失败');
-  });
-
-  $('btn-copy-caption').addEventListener('click', async () => {
-    const sub = capSubtitle.value.trim();
-    const intro = capIntro.value.trim();
-    if (!sub && !intro) { showToast('副标题和简介都还没填'); return; }
-    const ok = await copyText([sub, intro].filter(Boolean).join('\n\n'));
-    showToast(ok ? '已复制 caption，粘到小红书发布框' : '复制失败');
-  });
-
-  // 导出 ZIP
-  const slugFromTitle = (title) => {
-    const t = (title || 'untitled').replace(/[\\/:*?"<>|\s]/g, '').slice(0, 16);
-    const d = new Date();
-    const ymd = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`;
-    return `${ymd}-${t || 'untitled'}`;
-  };
-  const downloadBlob = (blob, filename) => {
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url; a.download = filename;
-    document.body.appendChild(a); a.click(); a.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 200);
-  };
-  const slideToBlob = (slide) => new Promise((resolve, reject) => {
-    html2canvas(slide, {
-      width: SLIDE_W, height: SLIDE_H, scale: 1,
-      backgroundColor: '#ffffff', useCORS: true, logging: false,
-    }).then((canvas) => canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('toBlob 失败'))), 'image/png'))
-      .catch(reject);
-  });
-
-  const exportZipBtn = $('btn-export-zip');
-  exportZipBtn.addEventListener('click', async () => {
-    const slides = stage.querySelectorAll('.slide');
-    if (!slides.length) { showToast('还没有 slides，先写正文'); return; }
-    const origText = exportZipBtn.textContent;
-    exportZipBtn.disabled = true;
-    try {
-      const zip = new JSZip();
-      for (let i = 0; i < slides.length; i++) {
-        exportZipBtn.textContent = `渲染中 ${i + 1}/${slides.length}...`;
-        const blob = await slideToBlob(slides[i]);
-        zip.file(`${String(i + 1).padStart(2, '0')}-${slides[i].dataset.kind}.png`, blob);
-      }
-      const sub = capSubtitle.value.trim();
-      const intro = capIntro.value.trim();
-      if (sub || intro) {
-        zip.file('caption.txt', ['【副标题】', sub || '（未填）', '', '【简介】', intro || '（未填）', '', '【源文章标题】', parsed.meta.title].join('\n'));
-      }
-      exportZipBtn.textContent = '打包中...';
-      const zipBlob = await zip.generateAsync({ type: 'blob' });
-      downloadBlob(zipBlob, `xhs-${slugFromTitle(parsed.meta.title)}.zip`);
-      showToast(`已导出 ${slides.length} 张图`);
-    } catch (e) {
-      console.error(e);
-      showToast('导出失败：' + e.message);
-    } finally {
-      exportZipBtn.disabled = false;
-      exportZipBtn.textContent = origText;
-    }
-  });
-
-  // 模态开关
-  const refreshSlides = () => {
-    if (!overlay.classList.contains('show')) return;
-    renderThumbs(buildAllSlides());
-  };
-  $('btn-export').addEventListener('click', () => { overlay.classList.add('show'); refreshSlides(); });
-  $('exporter-close').addEventListener('click', () => overlay.classList.remove('show'));
-  overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.classList.remove('show'); });
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && overlay.classList.contains('show')) overlay.classList.remove('show');
-  });
-  input.addEventListener('input', () => { if (overlay.classList.contains('show')) refreshSlides(); });
 })();

@@ -14,9 +14,6 @@
     --wechat-font: "PingFang SC", system-ui, -apple-system, BlinkMacSystemFont,
       "Helvetica Neue", "Hiragino Sans GB", "Microsoft YaHei UI",
       "Microsoft YaHei", Arial, sans-serif;
-    /* 贴图专用字体 —— 霞鹜文楷（本机安装），fallback 到系统字体 */
-    --xhs-font: "LXGW WenKai", "霞鹜文楷", "PingFang SC", system-ui,
-      "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
   }
   * { box-sizing: border-box; }
   html, body { height: 100%; margin: 0; }
@@ -58,12 +55,13 @@
   }
   button.primary:hover { background: #000; }
   button.ai {
-    background: linear-gradient(135deg, #6366f1, #8b5cf6);
-    color: #fff;
-    border-color: transparent;
+    background: #fff;
+    color: #1d1d1f;
+    border: 1px solid #1d1d1f;
+    font-weight: 600;
   }
-  button.ai:hover { filter: brightness(1.08); }
-  button.ai:disabled { opacity: .6; cursor: wait; }
+  button.ai:hover { background: #f0f0f3; }
+  button.ai:disabled { opacity: .55; cursor: wait; }
   select {
     font-family: inherit;
     font-size: 13px;
@@ -83,12 +81,30 @@
   .theme-chip.active { background: #1d1d1f; color: #fff; border-color: #1d1d1f; }
 
   main {
+    --split: 50%;
     display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 1px;
+    grid-template-columns: var(--split) 6px 1fr;
     background: var(--border);
     height: calc(100vh - 61px);
   }
+  /* 左右分栏拖拽手柄 */
+  .split-handle {
+    background: var(--border);
+    cursor: col-resize;
+    position: relative;
+    transition: background .15s ease;
+  }
+  .split-handle::after {
+    content: '';
+    position: absolute;
+    left: 50%; top: 50%;
+    transform: translate(-50%, -50%);
+    width: 2px; height: 36px;
+    border-radius: 2px;
+    background: #c7c7cc;
+  }
+  .split-handle:hover, .split-handle.dragging { background: #d1d1d6; }
+  .split-handle:hover::after, .split-handle.dragging::after { background: #8e8e93; }
   .panel { background: var(--panel); display: flex; flex-direction: column; min-width: 0; }
   .panel header.sub {
     padding: 8px 16px;
@@ -258,307 +274,13 @@
     max-width: 80vw;
   }
   .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
-  /* 语义渲染宿主（贴图分页数据源，不可见） */
-  #semantic-host { display: none; }
   @media (max-width: 960px) {
     main { grid-template-columns: 1fr; height: auto; }
+    .split-handle { display: none; }
     .panel { min-height: 50vh; }
     .phone { width: 340px; }
   }
 
-  /* ============ 小红书贴图导出 ============ */
-  .exporter-overlay {
-    position: fixed; inset: 0;
-    background: rgba(0,0,0,.55);
-    display: none;
-    align-items: center; justify-content: center;
-    z-index: 100;
-  }
-  .exporter-overlay.show { display: flex; }
-  .exporter {
-    width: min(1180px, 96vw);
-    height: min(820px, 94vh);
-    background: #fff;
-    border-radius: 14px;
-    overflow: hidden;
-    display: flex; flex-direction: column;
-    box-shadow: 0 20px 60px rgba(0,0,0,.3);
-  }
-  .exporter-header {
-    padding: 14px 20px;
-    border-bottom: 1px solid var(--border);
-    display: flex; align-items: center; justify-content: space-between;
-  }
-  .exporter-header strong { font-size: 14px; }
-  .exporter-header .x {
-    width: 28px; height: 28px;
-    border: 0; background: transparent; cursor: pointer;
-    font-size: 18px; color: var(--muted);
-  }
-  .exporter-header .x:hover { color: #1d1d1f; }
-  .exporter-body {
-    flex: 1;
-    display: grid;
-    grid-template-columns: 340px 1fr;
-    min-height: 0;
-  }
-  .exporter-side {
-    border-right: 1px solid var(--border);
-    padding: 18px;
-    overflow-y: auto;
-    display: flex; flex-direction: column; gap: 18px;
-    background: #fafafa;
-  }
-  .exporter-section h4 {
-    margin: 0 0 8px;
-    font-size: 12px;
-    color: var(--muted);
-    font-weight: 600;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
-  }
-  .hero-uploader {
-    border: 1.5px dashed #c7c7cc;
-    border-radius: 10px;
-    height: 120px;
-    display: flex; align-items: center; justify-content: center;
-    color: var(--muted);
-    font-size: 12px;
-    cursor: pointer;
-    background: #fff;
-    overflow: hidden;
-    position: relative;
-  }
-  .hero-uploader.drag { border-color: #1d1d1f; background: #f0f0f3; }
-  .hero-uploader img {
-    width: 100%; height: 100%; object-fit: cover; display: block;
-  }
-  .hero-uploader input[type="file"] { display: none; }
-  .hero-row { display: flex; gap: 8px; margin-top: 6px; }
-  .hero-row button { flex: 1; font-size: 12px; padding: 6px 8px; }
-  .hint {
-    font-size: 11px; color: var(--muted); margin-top: 6px; line-height: 1.5;
-  }
-  .exporter-side label {
-    display: block;
-    font-size: 12px; color: var(--muted); margin: 6px 0 4px;
-  }
-  .exporter-side input[type="text"],
-  .exporter-side textarea {
-    width: 100%;
-    box-sizing: border-box;
-    font-family: inherit;
-    font-size: 13px;
-    padding: 8px 10px;
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    background: #fff;
-    color: #1d1d1f;
-    resize: vertical;
-  }
-  .exporter-side textarea { line-height: 1.6; }
-  .char-meta { font-size: 11px; color: var(--muted); margin-top: 4px; text-align: right; }
-  .char-meta.warn { color: #d9831f; }
-  .actions-col { display: flex; flex-direction: column; gap: 8px; }
-  .actions-col button { width: 100%; }
-  .exporter-pages {
-    padding: 22px;
-    overflow: auto;
-    background: #e9e9ed;
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-    gap: 18px;
-    align-content: start;
-  }
-  .thumb {
-    width: 100%;
-    aspect-ratio: 3/4;
-    background: #fff;
-    border-radius: 10px;
-    overflow: hidden;
-    box-shadow: 0 2px 10px rgba(0,0,0,.1);
-    position: relative;
-  }
-  .thumb-inner {
-    width: 1242px;
-    height: 1656px;
-    transform-origin: top left;
-    pointer-events: none;
-  }
-  .thumb .idx {
-    position: absolute;
-    bottom: 8px; right: 8px;
-    background: rgba(0,0,0,.55);
-    color: #fff;
-    font-size: 11px;
-    padding: 3px 10px;
-    border-radius: 999px;
-    letter-spacing: .04em;
-  }
-  .thumb .kind {
-    position: absolute;
-    top: 8px; left: 8px;
-    background: rgba(255,255,255,.85);
-    color: #1d1d1f;
-    font-size: 11px;
-    padding: 3px 8px;
-    border-radius: 6px;
-  }
-
-  /* 离屏 slide 渲染舞台 —— html2canvas 抓这里 */
-  .slide-stage {
-    position: fixed;
-    left: -99999px; top: 0;
-    z-index: -1;
-    pointer-events: none;
-  }
-  .slide {
-    width: 1242px;
-    height: 1656px;
-    background: #fff;
-    color: rgb(20, 20, 20);
-    font-family: var(--xhs-font);
-    position: relative;
-    overflow: hidden;
-    box-sizing: border-box;
-  }
-  /* code 块仍保持等宽，避免文楷渲染代码段不清 */
-  .slide.body .body-content code {
-    font-family: "LXGW WenKai Mono", "霞鹜文楷 Mono",
-      ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  }
-  /* 封面 slide */
-  .slide.cover { padding: 70px; display: flex; flex-direction: column; }
-  .slide.cover .hero {
-    width: 100%;
-    height: 826px;
-    border-radius: 10px;
-    background: #f2f2f4;
-    object-fit: cover;
-    display: block;
-  }
-  .slide.cover .hero-placeholder {
-    width: 100%;
-    height: 826px;
-    border-radius: 10px;
-    background: #f2f2f4;
-    display: flex; align-items: center; justify-content: center;
-    color: #b0b0b5;
-    font-size: 28px;
-    letter-spacing: .04em;
-  }
-  .slide.cover .cover-title {
-    margin-top: 56px;
-    font-size: 78px;
-    line-height: 1.34;
-    font-weight: 800;
-    letter-spacing: .01em;
-  }
-  .slide.cover .cover-author {
-    margin-top: 44px;
-    font-size: 32px;
-    display: flex; align-items: center; gap: 18px;
-    color: rgb(20,20,20);
-  }
-  .slide.cover .cover-author::before {
-    content: '';
-    width: 6px; height: 38px;
-    background: rgb(20, 20, 20);
-    display: inline-block;
-  }
-  .slide.cover .cover-divider {
-    margin-top: 36px;
-    height: 2px;
-    background: #d8d8dc;
-  }
-  /* 正文 slide */
-  .slide.body { padding: 110px 90px 110px; }
-  .slide.body .body-content {
-    font-size: 40px;
-    line-height: 1.85;
-    color: rgb(20, 20, 20);
-  }
-  .slide.body .body-content > * { word-wrap: break-word; }
-  .slide.body .body-content p {
-    margin: 0 0 0.95em;
-  }
-  .slide.body .body-content h1,
-  .slide.body .body-content h2,
-  .slide.body .body-content h3 {
-    margin: 0.9em 0 0.5em;
-    font-weight: 700;
-    line-height: 1.4;
-  }
-  .slide.body .body-content h1 { font-size: 56px; }
-  .slide.body .body-content h2 {
-    font-size: 48px;
-    border-left: 8px solid rgb(99, 102, 241);
-    padding-left: 22px;
-  }
-  .slide.body .body-content h3 { font-size: 44px; }
-  .slide.body .body-content blockquote {
-    margin: 0.9em 0;
-    padding: 22px 30px;
-    border-left: 6px solid rgb(99, 102, 241);
-    background: #f3f3fd;
-    color: #555;
-  }
-  .slide.body .body-content blockquote p { margin: 0 0 0.5em; }
-  .slide.body .body-content blockquote p:last-child { margin: 0; }
-  .slide.body .body-content blockquote.sem-code {
-    background: #1e293b; color: #e2e8f0; border-left-color: #64748b;
-  }
-  .slide.body .body-content blockquote.sem-code code {
-    background: transparent; color: #e2e8f0; padding: 0; font-size: 32px;
-  }
-  .slide.body .body-content ul,
-  .slide.body .body-content ol {
-    padding-left: 1.5em;
-    margin: 0 0 0.95em;
-  }
-  .slide.body .body-content li { margin-bottom: 0.3em; }
-  .slide.body .body-content li::marker { color: rgb(99, 102, 241); }
-  .slide.body .body-content hr {
-    border: 0; border-top: 2px solid #ddd; margin: 1em 0;
-  }
-  .slide.body .body-content del { color: #9ca3af; }
-  .slide.body .body-content .wx-quote {
-    margin: 1em 0;
-    padding: 22px 26px;
-    text-align: center;
-    font-weight: 700;
-    color: rgb(99, 102, 241);
-    border-top: 2px solid rgb(99, 102, 241);
-    border-bottom: 2px solid rgb(99, 102, 241);
-    font-size: 42px;
-  }
-  .slide.body .body-content .wx-highlight {
-    color: rgb(20, 20, 20);
-    font-weight: 700;
-    background: linear-gradient(transparent 60%, rgba(99,102,241,.20) 60%);
-    padding: 0 4px;
-  }
-  .slide.body .body-content .wx-underline {
-    border-bottom: 2px dashed rgb(99, 102, 241);
-    padding-bottom: 2px;
-  }
-  .slide.body .body-content strong { font-weight: 700; }
-  .slide.body .body-content em { font-style: italic; }
-  .slide.body .body-content code {
-    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-    background: #f2f2f4;
-    padding: 4px 10px;
-    border-radius: 6px;
-    font-size: 34px;
-  }
-  .slide .page-num {
-    position: absolute;
-    bottom: 56px; right: 90px;
-    font-size: 22px;
-    color: #a0a0a5;
-    letter-spacing: .1em;
-  }
-  .slide.cover .page-num { color: #d0d0d5; bottom: 40px; right: 70px; }
 </style>
 </head>
 <body>
@@ -574,7 +296,6 @@
     <button id="btn-ai-undo" style="display:none" title="还原到 AI 排版前的内容">还原</button>
     <button id="btn-sample">示例</button>
     <button id="btn-clear">清空</button>
-    <button id="btn-export">导出贴图</button>
     <button id="btn-copy" class="primary">复制到公众号</button>
   </div>
 </header>
@@ -598,6 +319,7 @@
     </div>
     <textarea id="input" placeholder="在这里粘贴或输入你的文章，点「示例」看全部语法..."></textarea>
   </section>
+  <div class="split-handle" id="split-handle" title="拖拽调整左右宽度"></div>
   <section class="panel">
     <header class="sub"><span>手机端预览（375pt · 所见即复制产物）</span><span id="phone-time">9:41</span></header>
     <div class="preview-wrap">
@@ -622,63 +344,7 @@
 </main>
 
 <div id="toast" class="toast">已复制</div>
-<!-- 语义渲染宿主：贴图分页的数据源 -->
-<div id="semantic-host"></div>
 
-<!-- ============ 小红书贴图导出模态 ============ -->
-<div id="exporter" class="exporter-overlay" role="dialog" aria-modal="true">
-  <div class="exporter">
-    <div class="exporter-header">
-      <strong>导出小红书贴图 · 3:4 · 段落级分页</strong>
-      <button class="x" id="exporter-close" title="关闭">×</button>
-    </div>
-    <div class="exporter-body">
-      <aside class="exporter-side">
-        <div class="exporter-section">
-          <h4>封面 hero 图</h4>
-          <label class="hero-uploader" id="hero-uploader">
-            <span id="hero-placeholder-text">点击或拖入 hero 图</span>
-            <img id="hero-preview" alt="" style="display:none">
-            <input type="file" id="hero-file" accept="image/*">
-          </label>
-          <div class="hero-row">
-            <button id="btn-hero-clear">清除</button>
-            <button id="btn-copy-skill-prompt">复制 skill 指令</button>
-          </div>
-          <div class="hint">没有 hero 图？点「复制 skill 指令」粘到 agent 聊天，让 tommiao-xiaohongshu-cover skill 出一张。</div>
-        </div>
-
-        <div class="exporter-section">
-          <h4>小红书 Caption</h4>
-          <label>副标题（7-15 字）</label>
-          <input type="text" id="cap-subtitle" placeholder="一句话，与主标题呼应">
-          <div id="cap-subtitle-meta" class="char-meta">0 字</div>
-          <label>简介（150-200 字）</label>
-          <textarea id="cap-intro" rows="6" placeholder="以文章开头第一句为开头..."></textarea>
-          <div id="cap-intro-meta" class="char-meta">0 字</div>
-        </div>
-
-        <div class="exporter-section actions-col">
-          <button id="btn-copy-caption">复制 caption 文案</button>
-          <button id="btn-export-zip" class="primary">下载全部 (ZIP)</button>
-        </div>
-      </aside>
-      <main class="exporter-pages" id="exporter-pages"></main>
-    </div>
-  </div>
-</div>
-
-<!-- 离屏 slide 渲染舞台 -->
-<div class="slide-stage" id="slide-stage"></div>
-<!-- 段落级分页时用的测量器 -->
-<div class="slide-stage">
-  <div id="slide-measurer" class="slide body">
-    <div class="body-content" id="slide-measurer-content"></div>
-  </div>
-</div>
-
-<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
 <script src="assets/themes.js"></script>
 <script src="assets/app.js"></script>
 </body>
