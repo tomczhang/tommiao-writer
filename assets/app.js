@@ -5,7 +5,7 @@
  *   Markdown（扩展语法）→ parse() AST → renderWeChat(ast, theme) → 合规内联 HTML（预览 = 复制产物，含 <span leaf>）
  *
  * 扩展语法（工具条会插入这些标记）：
- *   行内：**加粗** *斜体* ==高亮== ++下划线++ ~~删除线~~ %%荧光笔%% [[标签]] `code` [文](url)
+ *   行内：**加粗** *斜体* ==高亮== ++下划线++ ~~删除线~~ %%马克笔%% [[胶囊]] `code` [文](url)
  *   块级：# ## ### > !!金句 - 1. ``` 表格 --- ![](url) [TOC]
  *         :::tip/info 标题 … :::
  *         :::steps（行=标题|描述）  :::cols（行=标题|描述）
@@ -28,7 +28,7 @@
 
   const INLINE_RE = new RegExp([
     '(`[^`]+`)',                    // 1 code
-    '(\\[\\[[^\\]]+\\]\\])',        // 2 [[标签]]
+    '(\\[\\[[^\\]]+\\]\\])',        // 2 [[胶囊]]
     '(\\[[^\\]]+\\]\\([^)]+\\))',   // 3 [文](url)
     '(==[^=]+==)',                  // 4 高亮
     '(%%[^%]+%%)',                  // 5 荧光笔
@@ -81,7 +81,7 @@
 
     const isBlockStart = (l) =>
       /^\s*$/.test(l) || /^#{1,3}\s+/.test(l) || /^\s*>\s?/.test(l) || /^\s*!!\s+/.test(l)
-      || /^\s*[-*]\s+/.test(l) || /^\s*\d+\.\s+/.test(l) || /^\s*(---|\*\*\*|___)\s*$/.test(l)
+      || /^\s*-\s+/.test(l) || /^\s*\d+\.\s+/.test(l) || /^\s*(---|\*\*\*|___)\s*$/.test(l)
       || /^```/.test(l) || /^\s*\|/.test(l) || /^:::/.test(l) || /^\s*\[TOC\]\s*$/i.test(l)
       || /^\s*!\[[^\]]*\]\([^)]+\)\s*$/.test(l);
 
@@ -147,13 +147,12 @@
         continue;
       }
 
-      // 列表：- 圆点列表（弱强调），* 胶囊列表（强强调）
-      if (/^\s*[-*]\s+/.test(line)) {
-        const pill = /^\s*\*\s+/.test(line);
-        const marker = pill ? /^\s*\*\s+/ : /^\s*-\s+/;
+      // 无序列表仅支持 Markdown 的 "- 内容" 形式
+      if (/^\s*-\s+/.test(line)) {
+        const marker = /^\s*-\s+/;
         const items = [];
         while (i < lines.length && marker.test(lines[i])) { items.push(lines[i].replace(marker, '')); i++; }
-        ast.push({ type: 'ul', pill, items });
+        ast.push({ type: 'ul', items });
         continue;
       }
       if (/^\s*\d+\.\s+/.test(line)) {
@@ -234,10 +233,22 @@
   // 渲染：公众号合规 HTML
   // ============================================================
 
-  const FLOW_TYPES = ['p', 'quote', 'golden', 'center', 'ul', 'ol', 'fence', 'table', 'image',
+  const FLOW_TYPES = ['sub', 'p', 'quote', 'golden', 'center', 'ul', 'ol', 'fence', 'table', 'image',
     'tip', 'info', 'steps', 'cols', 'timeline'];
+  const BODY_FONT_BASE = 14;
+  const BODY_FONT_DEFAULT = 15;
+  const BODY_FONT_MIN = 12;
+  const BODY_FONT_MAX = 20;
+  const SIGNATURE_DEFAULT = {
+    name: '汤姆喵',
+    bio: '一个重度 AI 使用者的真实观察',
+  };
 
-  const renderWeChat = (parsed, theme) => {
+  // 主题中的 14px 是常规正文基准字号；渲染后统一替换，确保预览与复制产物一致。
+  const applyBodyFontSize = (html, size) =>
+    size === BODY_FONT_BASE ? html : html.replace(/font-size:14px/g, `font-size:${size}px`);
+
+  const renderWeChat = (parsed, theme, bodyFontSize = BODY_FONT_DEFAULT, signature = SIGNATURE_DEFAULT) => {
     const { ast, meta } = parsed;
     const B = theme.blocks;
     const inl = (t) => inlineWx(t, theme);
@@ -254,7 +265,7 @@
         case 'quote': html = B.quote(paras(node.paras)); break;
         case 'golden': html = B.golden(inl(node.text)); break;
         case 'center': html = B.center(node.lines.map(inl).join('<br>')); break;
-        case 'ul': html = node.pill ? B.ulPill(node.items.map(inl)) : B.ul(node.items.map(inl)); break;
+        case 'ul': html = B.ul(node.items.map(inl)); break;
         case 'ol': html = B.ol(node.items.map(inl)); break;
         case 'fence': html = B.fence({ lang: esc(node.lang), lines: node.lines.map((l) => esc(l).replace(/^( +)/, (s) => '　'.repeat(Math.ceil(s.length / 2)))) }); break;
         case 'table': {
@@ -298,14 +309,17 @@
         }
         case 'sign': {
           const ls = node.lines;
-          html = B.sign({ name: ls[0] || '{{作者名}}', bio: (ls[1] || '{{一句话简介}}').replace(/。$/, '') });
+          html = B.sign({
+            name: (ls[0] || signature.name).trim(),
+            bio: (ls[1] === undefined ? signature.bio : ls[1]).trim().replace(/。$/, ''),
+          });
           break;
         }
       }
       if (!html) continue;
       out.push(FLOW_TYPES.includes(node.type) ? theme.wrapFlow(html) : html);
     }
-    return theme.container(out.join('\n'));
+    return applyBodyFontSize(theme.container(out.join('\n')), bodyFontSize);
   };
 
   // ============================================================
@@ -376,9 +390,26 @@
   const charCount = $('char-count');
   const punctBtn = $('btn-punct');
   const toast = $('toast');
+  const bodyFontValue = $('body-font-value');
+  const fontDecBtn = $('btn-font-dec');
+  const fontIncBtn = $('btn-font-inc');
+  const signatureDialog = $('signature-dialog');
+  const signatureForm = $('signature-form');
+  const signatureNameInput = $('signature-name');
+  const signatureBioInput = $('signature-bio');
 
   let currentTheme = localStorage.getItem('gzh-theme') || order[0];
   if (!themes[currentTheme]) currentTheme = order[0];
+  const savedBodyFontSize = Number.parseInt(localStorage.getItem('gzh-body-font-size'), 10);
+  let bodyFontSize = Number.isFinite(savedBodyFontSize)
+    ? Math.min(BODY_FONT_MAX, Math.max(BODY_FONT_MIN, savedBodyFontSize))
+    : BODY_FONT_DEFAULT;
+  const storedSignatureName = localStorage.getItem('gzh-signature-name');
+  const storedSignatureBio = localStorage.getItem('gzh-signature-bio');
+  let defaultSignature = {
+    name: storedSignatureName && storedSignatureName.trim() ? storedSignatureName.trim() : SIGNATURE_DEFAULT.name,
+    bio: storedSignatureBio === null ? SIGNATURE_DEFAULT.bio : storedSignatureBio.trim(),
+  };
   let parsed = { ast: [], meta: { title: '', chapters: [] } };
 
   const showToast = (msg) => {
@@ -391,7 +422,7 @@
   const update = () => {
     const text = input.value;
     parsed = parse(text);
-    preview.innerHTML = renderWeChat(parsed, themes[currentTheme]);
+    preview.innerHTML = renderWeChat(parsed, themes[currentTheme], bodyFontSize, defaultSignature);
     charCount.textContent = `正文约 ${[...preview.innerText.replace(/\s/g, '')].length} 字`;
     const n = countHalfPunct(text);
     punctBtn.textContent = n > 0 ? `半角标点 ${n} 处，点我修复` : '标点 ✓';
@@ -399,6 +430,21 @@
     const t = parsed.meta.title || '公众号文章';
     $('phone-title').textContent = t.length > 14 ? t.slice(0, 14) + '...' : t;
     localStorage.setItem('gzh-draft', text);
+  };
+
+  const syncBodyFontStepper = () => {
+    bodyFontValue.textContent = `${bodyFontSize}px`;
+    fontDecBtn.disabled = bodyFontSize <= BODY_FONT_MIN;
+    fontIncBtn.disabled = bodyFontSize >= BODY_FONT_MAX;
+  };
+
+  const changeBodyFontSize = (step) => {
+    const next = Math.min(BODY_FONT_MAX, Math.max(BODY_FONT_MIN, bodyFontSize + step));
+    if (next === bodyFontSize) return;
+    bodyFontSize = next;
+    localStorage.setItem('gzh-body-font-size', String(bodyFontSize));
+    syncBodyFontStepper();
+    update();
   };
 
   // ---------- 编辑历史（Ctrl/Cmd+Z 撤销，Shift+Z 或 Ctrl+Y 重做） ----------
@@ -476,30 +522,39 @@
   // 按使用频率降序；[行内渲染器 key, 按钮文字, 提示, 前缀, 后缀]
   // 按钮文字会直接用当前主题的真实样式渲染（所见即所得）
   const INLINE_TOOLS = [
-    ['underline', '下划线', '主色下划线（正文关键词默认标记，用得最多）', '++', '++'],
     ['strong', '加粗', '主色加粗（核心概念，全文 ≤5 处）', '**', '**'],
+    ['underline', '下划线', '主色下划线（正文关键词默认标记，用得最多）', '++', '++'],
     ['highlight', '高亮', '渐变高亮（全文 ≤3 处）', '==', '=='],
-    ['mark', '荧光笔', '黄底荧光笔（重点句）', '%%', '%%'],
-    ['tag', '标签', '背景标签（概念/专名）', '[[', ']]'],
+    ['mark', '马克笔', '黄色马克笔色块（行内强调）', '%%', '%%'],
+    ['tag', '胶囊', '行内胶囊（可单独使用，也可放进列表）', '[[', ']]'],
+    ['link', '链接', '行内链接（选中文字后再替换链接URL）', '[', '](链接URL)'],
     ['code', '行内代码', '行内代码（命令/标识符）', '`', '`'],
     ['strike', '删除线', '删除线（被淘汰的旧概念）', '~~', '~~'],
+    ['em', '斜体', '行内斜体（语气或术语强调）', '*', '*'],
   ];
 
-  // 按用户指定顺序排列；[单色图示, 按钮文字, 插入模板]（:::tip 语法仍支持，仅不设按钮）
+  // 按用户指定顺序排列；[单色图示, 按钮文字, 插入模板, 可选提示]
   const BLOCK_TOOLS = [
-    ['⬒', '封面', ':::cover\n标签：FEATURE\n旧认知：被颠覆的旧观念\n标题：主标题前半\n高亮词：强调词\n标题2：第二行（可删）\n副标题：关键词 · 用点分隔\n品牌：汤姆喵的奇妙旅行\n:::'],
-    ['☰', '目录', '[TOC]'],
+    ['•', '无序列表', '- 普通列表第一项\n- [[带胶囊的列表项]]'],
+    ['①', '有序列表', '1. 有序列表第一项\n2. [[带胶囊的列表项]]'],
+    ['H2', '章节', '## 章节标题 | CHAPTER'],
+    ['H3', '小标题', '### 小标题'],
+    ['❞', '引用', '> 引用内容'],
+    ['▣', '图片', '![图片说明](图片URL)'],
     ['❝', '金句', '!! 这里是核心金句'],
     ['═', '居中金句', ':::center\n居中金句一行\n:::'],
-    ['❞', '引用', '> 引用内容'],
+    ['!', '提示', ':::tip 操作提示\n提示内容\n:::'],
     ['ⓘ', '信息', ':::info 补充信息\n信息内容\n:::'],
-    ['✎', '签名', ':::sign\n汤姆喵\n一个重度 AI 使用者的真实观察\n:::'],
-    ['▣', '图片', '![图片说明](图片URL)'],
-    ['</>', '代码块', '```bash\n命令或代码\n```'],
+    ['—', '分隔线', '---'],
     ['⊞', '表格', '| 列1 | 列2 | 列3 |\n| --- | --- | --- |\n| 内容 | 内容 | 内容 |'],
+    ['</>', '代码块', '```bash\n命令或代码\n```'],
     ['⇢', '流程', ':::steps\n第一步|描述\n第二步|描述\n第三步|描述\n> 底部说明（可删）\n:::'],
     ['‖‖', '三列', ':::cols\n方案A|描述\n方案B|描述\n方案C|描述\n:::'],
     ['⋮', '时间线', ':::timeline\nCASE 01|标题一|内容一\nCASE 02|标题二|内容二\n:::'],
+    ['H1', '文章标题', '# 文章标题', '仅同步到手机预览栏，不进入复制正文'],
+    ['⬒', '封面', ':::cover\n标签：FEATURE\n旧认知：被颠覆的旧观念\n标题：主标题前半\n高亮词：强调词\n标题2：第二行（可删）\n副标题：关键词 · 用点分隔\n品牌：汤姆喵的奇妙旅行\n:::'],
+    ['☰', '目录', '[TOC]'],
+    ['✎', '签名', () => `:::sign\n${defaultSignature.name}\n${defaultSignature.bio ? defaultSignature.bio + '\n' : ''}:::`],
   ];
 
   // ---------- 工具条悬浮样式预览 ----------
@@ -515,12 +570,13 @@
 
   // 个别块组件的插入模板不能直接独立渲染，用专门的预览源码
   const BLOCK_PREVIEW = {
+    '文章标题': { md: '# 示例文章标题\n\n文章标题仅同步到手机预览栏，不进入复制正文。' },
     '目录': { md: '[TOC]\n\n## 先说结论 | OPINION\n\n## 实测过程 | TEST\n\n## 写在最后 | FINAL', pickFirst: true },
     '图片': { md: `![示例图片说明](${PREVIEW_IMG})` },
   };
 
   const previewHtml = (md, pickFirst) => {
-    const html = renderWeChat(parse(md), themes[currentTheme]);
+    const html = renderWeChat(parse(md), themes[currentTheme], bodyFontSize, defaultSignature);
     if (!pickFirst) return html;
     const tmp = document.createElement('div');
     tmp.innerHTML = html;
@@ -532,7 +588,7 @@
   const showPop = (btn, key, mdFactory, pickFirst) => {
     clearTimeout(popTimer);
     popTimer = setTimeout(() => {
-      const cacheKey = currentTheme + ':' + key;
+      const cacheKey = currentTheme + ':' + bodyFontSize + ':' + defaultSignature.name + ':' + defaultSignature.bio + ':' + key;
       if (!popCache[cacheKey]) {
         popCache[cacheKey] = `<p class="pop-label">样式预览 · ${themes[currentTheme].name}</p>` + previewHtml(mdFactory(), pickFirst);
       }
@@ -560,8 +616,10 @@
     INLINE_TOOLS.forEach(([key, label, tip, b, a]) => {
       const btn = document.createElement('button');
       btn.className = 'tool';
-      // 按钮文字直接穿上当前主题的真实样式
-      btn.innerHTML = theme.inline[key](label);
+      // 按钮文字直接穿上当前主题的真实样式；链接避免在 button 内嵌交互式 <a>
+      btn.innerHTML = key === 'link'
+        ? `<span style="color:${theme.uiColor};text-decoration:underline;text-underline-offset:3px;">${label}</span>`
+        : theme.inline[key](label);
       btn.title = tip + `　${b}文字${a}`;
       btn.addEventListener('mousedown', (e) => e.preventDefault()); // 保住 textarea 选区
       btn.addEventListener('click', () => { hidePop(); wrapSelection(b, a); });
@@ -570,15 +628,16 @@
       btn.addEventListener('mouseleave', hidePop);
       inlineBar.appendChild(btn);
     });
-    BLOCK_TOOLS.forEach(([glyph, label, tpl]) => {
+    BLOCK_TOOLS.forEach(([glyph, label, tpl, tip]) => {
+      const getTemplate = () => (typeof tpl === 'function' ? tpl() : tpl);
       const btn = document.createElement('button');
       btn.className = 'tool';
       btn.innerHTML = `<span class="glyph">${glyph}</span>${label}`;
-      btn.title = tpl.split('\n')[0];
+      btn.title = tip || getTemplate().split('\n')[0];
       btn.addEventListener('mousedown', (e) => e.preventDefault());
-      btn.addEventListener('click', () => { hidePop(); insertBlock(tpl); });
+      btn.addEventListener('click', () => { hidePop(); insertBlock(getTemplate()); });
       const pv = BLOCK_PREVIEW[label];
-      btn.addEventListener('mouseenter', () => showPop(btn, 'b:' + label, () => (pv ? pv.md : tpl), pv && pv.pickFirst));
+      btn.addEventListener('mouseenter', () => showPop(btn, 'b:' + label, () => (pv ? pv.md : getTemplate()), pv && pv.pickFirst));
       btn.addEventListener('mouseleave', hidePop);
       blockBar.appendChild(btn);
     });
@@ -652,7 +711,9 @@
     }
   };
 
-  const AI_FALLBACK_PROMPT = (md) => `请对下面的公众号文章 Markdown 做排版标记优化（不改写内容）：只在承载核心观点/结论/关键数据的句子里标 ++关键词++（宁缺毋滥，不要每段都标，全文大致每 2-3 段 1 处）；全文 ≤5 处 **加粗**；全文 ≤3 处 ==高亮==；提示类内容转 :::tip 块，补充信息转 :::info 块；中文语境标点全角化（代码/URL 除外）；2 个以上 ## 章节时开头加 [TOC]；文末补 :::sign 签名块。直接返回优化后的完整 Markdown，不要解释。\n\n${md}`;
+  const signatureMarkdown = () => `:::sign\n${defaultSignature.name}\n${defaultSignature.bio ? defaultSignature.bio + '\n' : ''}:::`;
+
+  const AI_FALLBACK_PROMPT = (md) => `请对下面的公众号文章 Markdown 做排版标记优化（不改写内容）：只在承载核心观点、结论、关键数据的句子里标 ++关键词++（宁缺毋滥，不要每段都标，全文大致每 2-3 段 1 处）；全文 ≤5 处 **加粗**；全文 ≤3 处 ==高亮==；提示类内容转 :::tip 块，补充信息转 :::info 块；中文语境标点全角化（代码/URL 除外）；2 个以上 ## 章节时开头加 [TOC]；文末没有签名时追加以下签名块：\n${signatureMarkdown()}\n直接返回优化后的完整 Markdown，不要解释。\n\n${md}`;
 
   const runAi = async () => {
     const md = input.value.trim();
@@ -673,6 +734,7 @@
           markdown: md,
           preset: aiPresetSel.value,
           themeName: themes[currentTheme].name,
+          signature: defaultSignature,
         }),
       });
       const data = await res.json();
@@ -703,7 +765,7 @@
 
   // ---------- 示例 ----------
 
-  const SAMPLE = `# 这是一篇示例文章
+  const SAMPLE = () => `# 这是一篇示例文章
 
 :::cover
 标签：HANDS-ON · 实战
@@ -720,7 +782,7 @@
 
 !! 开头金句：真正的效率不是快，而是不用返工
 
-这是第一段正文。**核心概念**用主色加粗，++关键短语++用主色下划线标记，还可以用 ==渐变高亮== 强调一段里最重要的话。~~过时的旧概念~~用删除线，[[新概念]]可以打个标签，行内命令写成 \`npm install\`。
+这是第一段正文。**核心概念**用主色加粗，++关键短语++用主色下划线标记，还可以用 ==渐变高亮== 强调一段里最重要的话。%%黄色马克笔%%适合行内强调，~~过时的旧概念~~用删除线，[[新概念]]可以显示为胶囊，行内命令写成 \`npm install\`。
 
 ## 先说结论 | OPINION
 
@@ -749,13 +811,12 @@ node server.js
 \`\`\`
 
 1. 有序列表第一条
-2. 有序列表第二条
+2. [[有序列表中的胶囊]]
 
 - 圆点列表（弱强调，++关键词++照样可标）
-- 第二条
+- [[无序列表中的胶囊]]
 
-* 胶囊列表（强强调，适合并列要点）
-* 第二条
+正文里也能并列使用：[[方案 A]] [[方案 B]] [[方案 C]]
 
 | 方案 | 成本 | 效果 |
 | --- | --- | --- |
@@ -771,15 +832,42 @@ node server.js
 最后一段正文，说完收工。
 
 :::sign
-汤姆喵
-一个重度 AI 使用者的真实观察
-:::`;
+${defaultSignature.name}
+${defaultSignature.bio ? defaultSignature.bio + '\n' : ''}:::`;
 
   // ---------- 事件绑定 ----------
 
-  $('btn-sample').addEventListener('click', () => { commitHistory(); input.value = SAMPLE; update(); commitHistory(); });
+  $('btn-sample').addEventListener('click', () => { commitHistory(); input.value = SAMPLE(); update(); commitHistory(); });
   $('btn-clear').addEventListener('click', () => { commitHistory(); input.value = ''; update(); commitHistory(); input.focus(); });
   $('btn-copy').addEventListener('click', copyRich);
+  $('btn-signature').addEventListener('click', () => {
+    signatureNameInput.value = defaultSignature.name;
+    signatureBioInput.value = defaultSignature.bio;
+    signatureDialog.showModal();
+    signatureNameInput.focus();
+  });
+  $('btn-signature-cancel').addEventListener('click', () => signatureDialog.close());
+  signatureDialog.addEventListener('click', (e) => {
+    if (e.target === signatureDialog) signatureDialog.close();
+  });
+  signatureNameInput.addEventListener('input', () => signatureNameInput.setCustomValidity(''));
+  signatureForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const name = signatureNameInput.value.trim();
+    if (!name) {
+      signatureNameInput.setCustomValidity('请输入作者名');
+      signatureNameInput.reportValidity();
+      return;
+    }
+    defaultSignature = { name, bio: signatureBioInput.value.trim().replace(/。$/, '') };
+    localStorage.setItem('gzh-signature-name', defaultSignature.name);
+    localStorage.setItem('gzh-signature-bio', defaultSignature.bio);
+    signatureDialog.close();
+    update();
+    showToast('默认签名已保存');
+  });
+  fontDecBtn.addEventListener('click', () => changeBodyFontSize(-1));
+  fontIncBtn.addEventListener('click', () => changeBodyFontSize(1));
   punctBtn.addEventListener('click', () => {
     if (!countHalfPunct(input.value)) { showToast('没有需要修复的半角标点'); return; }
     commitHistory();
@@ -846,6 +934,7 @@ node server.js
   // ---------- 启动 ----------
   renderThemeBar();
   buildToolbar();
+  syncBodyFontStepper();
   const draft = localStorage.getItem('gzh-draft');
   if (draft) input.value = draft;
   update();

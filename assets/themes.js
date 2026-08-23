@@ -108,6 +108,7 @@ ${line}
   // ============================================================
   function makeMagazineTheme(P) {
     const grad = `linear-gradient(135deg,${P.main},${P.sub})`;
+    const capsule = (html) => `<span style="display:inline-block;color:${P.main};background:${rgba(P.main, 0.1)};padding:2px 9px;border-radius:999px;font-weight:700;line-height:1.5;white-space:nowrap;">${html}</span>`;
 
     const theme = {
       id: P.id,
@@ -124,8 +125,8 @@ ${line}
         highlight: (t) => `<span style="background:linear-gradient(120deg,${N.yellow} 0%,rgba(255,255,255,0) 100%);padding:0 4px;border-radius:2px;font-weight:600;color:${N.heading};">${leaf(t)}</span>`,
         underline: (t) => `<span style="border-bottom:2px solid ${P.lightLine};font-weight:600;">${leaf(t)}</span>`,
         strike: (t) => `<span style="background:${N.grayBg};color:${N.note};padding:2px 6px;border-radius:4px;font-size:13px;text-decoration:line-through;font-weight:600;">${leaf(t)}</span>`,
-        mark: (t) => `<span style="color:${N.heading};font-weight:bold;border-bottom:3px solid ${N.yellow};">${leaf(t)}</span>`,
-        tag: (t) => `<strong style="color:${P.main};background:${rgba(P.main, 0.1)};padding:0 4px;border-radius:2px;">${leaf(t)}</strong>`,
+        mark: (t) => `<span style="background:linear-gradient(180deg,transparent 65%,${N.yellow} 65%);padding:0 4px;color:${N.heading};font-weight:700;">${leaf(t)}</span>`,
+        tag: (t) => capsule(leaf(t)),
         code: (t) => `<span style="background:${N.grayBg};color:#1F2937;padding:2px 6px;border-radius:4px;font-size:13px;font-weight:600;">${leaf(t)}</span>`,
         link: (t, url) => `<a href="${url}" style="color:${P.main};text-decoration:underline;text-underline-offset:3px;">${leaf(t)}</a>`,
       },
@@ -149,7 +150,10 @@ ${line}
 </section>`;
         },
         sub(html) {
-          return `<p style="font-size:15px;font-weight:900;color:${N.heading};margin:32px 0 16px;"><span style="background:linear-gradient(180deg,transparent 65%,${N.yellow} 65%);padding:0 4px;">${html}</span></p>`;
+          return `<section style="display:flex;align-items:center;gap:12px;margin:32px 0 18px;padding:0 0 9px;border-bottom:1px solid ${P.lightBorder};">
+<span style="display:block;width:10px;height:10px;background:${P.main};border-radius:2px;box-shadow:3px 3px 0 ${P.lightLine};flex-shrink:0;font-size:0;line-height:0;overflow:hidden;">${FILL}</span>
+<p style="font-size:16px;font-weight:900;color:${N.heading};margin:0;line-height:1.5;flex:1;">${html}</p>
+</section>`;
         },
         p(html) {
           return `<p style="margin-bottom:16px;font-size:14px;line-height:1.9;text-align:justify;color:${N.body};">${html}</p>`;
@@ -172,20 +176,14 @@ ${inner}
         },
         ul(items) {
           const rows = items.map((h) => `<section style="display:flex;align-items:flex-start;gap:12px;margin-bottom:14px;">
-<span style="display:inline-block;width:10px;height:10px;background:${P.main};border-radius:50%;flex-shrink:0;margin-top:8px;">${FILL}</span>
+<span style="display:inline-block;width:7px;height:7px;background:${P.main};border-radius:50%;flex-shrink:0;margin-top:10px;">${FILL}</span>
 <p style="font-size:14px;color:${N.body};margin:0;line-height:1.9;flex:1;">${h}</p>
 </section>`).join('');
           return `<section style="margin-bottom:20px;">${rows}</section>`;
         },
-        ulPill(items) {
-          const rows = items.map((h) => `<section style="margin-bottom:10px;">
-<p style="margin:0;"><span style="display:inline-block;font-size:13px;font-weight:700;color:${P.main};background:${rgba(P.main, 0.08)};padding:3px 10px;border-radius:999px;"><span style="display:inline-block;width:6px;height:6px;background:${P.main};border-radius:50%;margin-right:5px;vertical-align:middle;">${FILL}</span>${h}</span></p>
-</section>`).join('');
-          return `<section style="margin-bottom:14px;">${rows}</section>`;
-        },
         ol(items) {
           const rows = items.map((h, i) => `<section style="display:flex;align-items:flex-start;gap:10px;margin-bottom:12px;">
-<span style="display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;background:${P.main};color:#ffffff;font-size:11px;font-weight:700;border-radius:50%;flex-shrink:0;margin-top:2px;">${leaf(String(i + 1))}</span>
+<span style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;background:${P.main};color:#ffffff;font-size:10px;font-weight:700;border-radius:50%;flex-shrink:0;margin-top:5px;">${leaf(String(i + 1))}</span>
 <p style="font-size:14px;color:${N.body};margin:0;line-height:1.9;flex:1;">${h}</p>
 </section>`).join('');
           return `<section style="margin-bottom:24px;">${rows}</section>`;
@@ -289,7 +287,8 @@ ${(f.tags || []).map((t) => `<span style="background:rgba(255,255,255,0.2);paddi
 </section>`;
         },
         sign({ name, bio }) {
-          const intro = `<section style="padding:0 20px;"><p style="margin-bottom:16px;font-size:14px;line-height:1.9;text-align:justify;color:${N.body};">${leaf('我是 ')}<strong style="color:${P.main};">${leaf(name)}</strong>${leaf('，' + bio + '。')}</p></section>`;
+          const introEnd = bio ? leaf('，' + bio + '。') : leaf('。');
+          const intro = `<section style="padding:0 20px;"><p style="margin-bottom:16px;font-size:14px;line-height:1.9;text-align:justify;color:${N.body};">${leaf('我是 ')}<strong style="color:${P.main};">${leaf(name)}</strong>${introEnd}</p></section>`;
           return intro + `<section style="background:radial-gradient(circle at center,${N.palest} 0%,#FFFFFF 100%);border:1px solid ${N.border};border-radius:16px;padding:32px 20px;text-align:center;box-shadow:0 4px 12px rgba(0,0,0,0.03);margin:0 0 24px;">
 <p style="font-size:13px;font-weight:bold;color:${N.heading};margin-bottom:20px;line-height:1.6;">${leaf('既然看到这里了，如果觉得有用，随手点个赞、转发、推荐三连吧。')}</p>
 <section style="display:flex;justify-content:center;gap:24px;margin-bottom:16px;">

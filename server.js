@@ -49,26 +49,28 @@ const readConfig = () => {
 const MARK_START = '<<<GZH_MD_START>>>';
 const MARK_END = '<<<GZH_MD_END>>>';
 
-const buildPrompt = (markdown, themeName) => `你是公众号排版优化助手。对下面的文章 Markdown 做「默认样式优化」，只做标记与结构优化，不改写、不增删文章的实质内容。目标主题：${themeName}。
+const buildPrompt = (markdown, themeName, signature = {}) => {
+  const signatureName = String(signature.name || '{{作者名}}').replace(/[\r\n]+/g, ' ').trim();
+  const signatureBio = String(signature.bio || '').replace(/[\r\n]+/g, ' ').trim();
+  const signatureBlock = `:::sign\n${signatureName}\n${signatureBio ? signatureBio + '\n' : ''}:::`;
+
+  return `你是公众号排版优化助手。对下面的文章 Markdown 做「默认样式优化」，只做标记与结构优化，不改写、不增删文章的实质内容。目标主题：${themeName}。
 
 必须执行的优化（参照 gzh-design skill 的智能处理规则）：
 1. 正文关键词标记：只在承载核心观点、结论、关键数据的句子里用 ++短语++ 标记（4-15 字），宁缺毋滥——不要每段都标，普通叙述/铺垫段落不标，全文密度大致每 2-3 段 1 处。已有标记的段落不重复加。
 2. 锚点强调：全文挑不超过 5 处最核心的概念/结论用 **文字** 加粗；全文不超过 3 处 ==文字== 高亮，高亮是「全文最想让读者记住的短语」。
-3. 被淘汰的旧概念用 ~~文字~~（删除线）；重要概念/专名可用 [[文字]]（背景标签）。
+3. 被淘汰的旧概念用 ~~文字~~（删除线）；适合短标签化展示的重要概念/专名可用 [[文字]]（行内胶囊）。胶囊也可放在列表项中，如 "- [[方案 A]]"，但不要把长句整段包进胶囊。
 4. 章节结构：正文小节统一用 ## 二级标题（会自动编号 01/02/…）；末章若是总结/结语类，标题建议为「写在最后」。可在标题后用 " | ENGLISH TAG" 附英文标签（如 ## 实测 | TEST）。
 5. 文章有明显的开头金句时，把它独立成 "!! 金句内容" 一行（金句卡）。
 6. 提示/注意/补充类内容转成容器块：
    :::tip 标题（操作建议/注意事项）/ :::info 标题（背景补充/旁注），内容行放在 ::: 与 ::: 之间。
 7. 三步流程可转 :::steps（每行"标题|描述"）；三项并列对比可转 :::cols（每行"标题|描述"）；时间脉络可转 :::timeline（每行"标签|标题|内容"）。仅在内容天然匹配时才转换，不硬造。
-8. 无序列表：普通并列内容用 "- " 开头（圆点弱强调）；只有需要重点突出的短要点清单才用 "* " 开头（胶囊强强调）。
+8. 无序列表仅使用 "- " 开头；有顺序关系时使用 "1. "。需要强调某个短列表项时，在列表中使用 [[行内胶囊]]。
 9. 正文标点全角化：中文语境下的 , . ! ? : ; " " ' ' ( ) 换成 ，。！？：；""''（）；代码块/行内代码/URL/英文专名内部保持原样。
 10. 若文章有 2 个以上 ## 章节且开头没有 [TOC]，在第一个 ## 之前单独一行加 [TOC]。
-11. 文末没有签名区时，追加：
-:::sign
-{{作者名}}
-{{一句话简介}}
-:::
-（原文已有作者签名则把签名内容填进去，不留占位。）
+11. 文末没有签名区时，追加以下签名块：
+${signatureBlock}
+（签名内容必须直接写入 Markdown，方便用户对当前文章单独修改；原文已有作者签名时保留原内容。）
 
 硬性约束：
 - 保留原文全部段落、图片、代码块、链接，不得遗漏或改写实质内容。
@@ -78,6 +80,7 @@ const buildPrompt = (markdown, themeName) => `你是公众号排版优化助手�
 --------------------------------
 ${markdown}
 --------------------------------`;
+};
 
 // ---------- CLI 调用 ----------
 
@@ -208,7 +211,7 @@ const server = http.createServer(async (req, res) => {
       const preset = (cfg.presets || {})[presetId];
       if (!preset) return json(res, 400, { error: `未知预设：${presetId}` });
 
-      const prompt = buildPrompt(markdown, body.themeName || '默认主题');
+      const prompt = buildPrompt(markdown, body.themeName || '默认主题', body.signature);
       const timeoutMs = cfg.timeoutMs || 300000;
       console.log(`[ai-format] preset=${presetId} 输入 ${markdown.length} 字，调用 ${preset.command} ...`);
       const t0 = Date.now();

@@ -39,7 +39,7 @@
 
   /* ============ 顶部：品牌字标 + 主题 + 动作 ============ */
   header.top {
-    padding: 18px 28px 14px;
+    padding: 18px 20px 14px;
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -140,7 +140,7 @@
     min-height: 0;
     display: grid;
     grid-template-columns: var(--split) 14px 1fr;
-    padding: 4px 24px 24px;
+    padding: 4px 20px 24px;
   }
   .panel {
     background: var(--panel);
@@ -230,6 +230,126 @@
   #btn-punct:hover { transform: none; box-shadow: none; border-color: var(--border); }
   #btn-punct.warn { color: #b26a00; border-color: #e7c96a; background: var(--marker-soft); }
   #char-count { letter-spacing: 0; text-transform: none; font-weight: 600; }
+
+  /* 预览正文字号步进器 */
+  .preview-meta {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    letter-spacing: 0;
+    text-transform: none;
+  }
+  .font-stepper {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    padding: 2px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: #fff;
+  }
+  .font-stepper-label {
+    padding-left: 7px;
+    color: var(--muted);
+    font-size: 10px;
+    font-weight: 700;
+  }
+  .font-stepper button {
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: transparent;
+    color: var(--ink-soft);
+    font-size: 16px;
+    line-height: 1;
+  }
+  .font-stepper button:hover {
+    background: var(--marker-soft);
+    color: var(--ink);
+    transform: none;
+    box-shadow: none;
+  }
+  .font-stepper button:disabled {
+    color: var(--border);
+    cursor: not-allowed;
+  }
+  .font-stepper button:disabled:hover { background: transparent; }
+  #body-font-value {
+    min-width: 34px;
+    color: var(--ink);
+    font-size: 11px;
+    font-weight: 700;
+    text-align: center;
+  }
+
+  /* 默认签名设置 */
+  .signature-dialog {
+    width: min(440px, calc(100vw - 32px));
+    padding: 0;
+    border: 0;
+    border-radius: 20px;
+    background: transparent;
+    color: var(--ink);
+  }
+  .signature-dialog::backdrop {
+    background: rgba(26, 26, 26, 0.34);
+    backdrop-filter: blur(3px);
+  }
+  .signature-card {
+    padding: 24px;
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    background: var(--panel);
+    box-shadow: 0 24px 64px rgba(26, 26, 26, 0.2);
+  }
+  .signature-card h2 {
+    margin: 0 0 6px;
+    font-size: 19px;
+    letter-spacing: -0.4px;
+  }
+  .signature-card .dialog-desc {
+    margin: 0 0 20px;
+    color: var(--muted);
+    font-size: 12px;
+    line-height: 1.6;
+  }
+  .signature-fields {
+    display: grid;
+    gap: 14px;
+    margin: 0;
+    padding: 0;
+    border: 0;
+  }
+  .signature-field {
+    display: grid;
+    gap: 7px;
+    color: var(--ink-soft);
+    font-size: 12px;
+    font-weight: 700;
+  }
+  .signature-field input {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    outline: none;
+    background: #fffdf8;
+    color: var(--ink);
+    font: 500 14px/1.4 var(--font);
+    transition: border-color .15s ease, box-shadow .15s ease;
+  }
+  .signature-field input:focus {
+    border-color: var(--ink);
+    box-shadow: 0 0 0 3px var(--marker-soft);
+  }
+  .signature-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 22px;
+  }
 
   /* 工具条悬浮样式预览 */
   .style-pop {
@@ -407,6 +527,7 @@
     <button id="btn-ai-undo" style="display:none" title="还原到 AI 排版前的内容">还原</button>
     <button id="btn-sample">示例</button>
     <button id="btn-clear">清空</button>
+    <button id="btn-signature" title="设置插入签名块时使用的默认作者信息">默认签名</button>
     <button id="btn-copy" class="primary">复制到公众号 →</button>
   </div>
 </header>
@@ -432,7 +553,18 @@
   </section>
   <div class="split-handle" id="split-handle" title="拖拽调整左右宽度"></div>
   <section class="panel">
-    <header class="sub"><span><span class="no">N°02</span>手机预览 · 所见即复制产物</span><span id="phone-time">9:41</span></header>
+    <header class="sub">
+      <span><span class="no">N°02</span>手机预览 · 所见即复制产物</span>
+      <span class="preview-meta">
+        <span class="font-stepper" role="group" aria-label="调整正文字体大小">
+          <span class="font-stepper-label">正文</span>
+          <button id="btn-font-dec" type="button" aria-label="减小正文字体">−</button>
+          <output id="body-font-value" aria-live="polite">15px</output>
+          <button id="btn-font-inc" type="button" aria-label="增大正文字体">＋</button>
+        </span>
+        <span id="phone-time">9:41</span>
+      </span>
+    </header>
     <div class="preview-wrap">
       <div class="phone">
         <div class="phone-statusbar">
@@ -455,6 +587,27 @@
 </main>
 
 <div id="toast" class="toast">已复制</div>
+
+<dialog id="signature-dialog" class="signature-dialog" aria-labelledby="signature-dialog-title">
+  <form id="signature-form" class="signature-card">
+    <h2 id="signature-dialog-title">默认签名</h2>
+    <p class="dialog-desc">插入签名或 AI 排版时会把这组信息直接写入 Markdown，之后可在正文中单独修改。</p>
+    <fieldset class="signature-fields">
+      <label class="signature-field">
+        作者名
+        <input id="signature-name" name="signature-name" type="text" maxlength="40" required autocomplete="name" placeholder="例如：汤姆喵" />
+      </label>
+      <label class="signature-field">
+        一句话简介（可选）
+        <input id="signature-bio" name="signature-bio" type="text" maxlength="100" placeholder="例如：一个重度 AI 使用者的真实观察" />
+      </label>
+    </fieldset>
+    <div class="signature-actions">
+      <button id="btn-signature-cancel" type="button">取消</button>
+      <button class="primary" type="submit">保存默认签名</button>
+    </div>
+  </form>
+</dialog>
 
 <script src="assets/themes.js"></script>
 <script src="assets/app.js"></script>
